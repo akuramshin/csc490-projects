@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from typing import List, Tuple
-
 import torch
 
 from detection.types import Detections
@@ -75,11 +74,22 @@ class Voxelizer(torch.nn.Module):
             BEV occupacy image as a [batch_size x D x H x W] tensor.
         """
         # TODO: Replace this stub code.
-        return torch.zeros(
+        bev_voxels = torch.zeros(
             (len(pointclouds), self._depth, self._height, self._width),
             dtype=torch.bool,
             device=pointclouds[0].device,
         )
+        print("LENGTH: {}".format(bev_voxels.shape))
+        for idx, cloud in enumerate(pointclouds):
+            for p in cloud:
+                if self._x_min < p[0] < self._x_max and self._y_min < p[1] < self._y_max and self._z_min < p[2] < self._z_max :
+                    i = int(torch.floor((p[2] - self._z_min) / self._step).item())
+                    j = int(torch.floor((self._y_max - p[1]) / self._step).item())
+                    k = int(torch.floor((p[0] - self._x_min) / self._step).item())
+                    bev_voxels[idx][i][j][k] = 1
+
+
+        return bev_voxels
 
     def project_detections(self, detections: Detections) -> Detections:
         """Project detections to voxelized frame and filter out-of-bounds ones.

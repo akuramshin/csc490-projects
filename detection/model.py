@@ -117,6 +117,48 @@ class DetectionModel(nn.Module):
             A set of 2D bounding box detections.
         """
         # TODO: Replace this stub code.
+        _, H, W = bev_lidar.shape
+
+        Y = self.forward(bev_lidar)
+        heatmap = Y[0]
+        offset_x = Y[1]
+        offset_y = Y[2]
+        x_size = Y[3]
+        y_size = Y[4]
+        sin_theta = Y[5]
+        cos_theta = Y[6]
+
+        detections = []
+        for i in range(H):
+            for j in range(W):
+                if heatmap[i][j] == torch.max(heatmap[max(0, i-2):min(H, i+2), max(0, j-2):min(W, j+2)]):
+                    detections.append((i, j, heatmap[i][j]))
+        
+        if len(detections) > k:
+            detections.sort(key=lambda x: x[2], reverse=True)
+            detections = detections[0:k]
+
+        for d in range(len(detections)):
+            i = detections[d][0]
+            j = detections[d][1]
+            detections[i][0] += offset_x[i][j]
+            detections[i][1] += offset_y[i][j]
+
+        for d in range(len(detections)):
+            i = detections[d][0]
+            j = detections[d][1]
+            detections[d] = (i, j, x_size[i][j], y_size[i][j], detections[i][2])
+        
+        for d in range(len(detections)):
+            i = detections[d][0]
+            j = detections[d][1]
+            theta = torch.atan2(sin_theta, cos_theta)
+            detections[d] = (i, j, theta, detections[d][2], detections[d][3], detections[d][4])
+
+
         return Detections(
-            torch.zeros((0, 3)), torch.zeros(0), torch.zeros((0, 2)), torch.zeros(0)
+            torch.tensor([[x[0], x[1]] for x in detections]), 
+            torch.tensor([x[2] for x in detections]), 
+            torch.tensor([[x[3], x[4]] for x in detections]), 
+            torch.tensor([x[5] for x in detections])
         )

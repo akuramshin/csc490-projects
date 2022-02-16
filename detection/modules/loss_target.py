@@ -30,7 +30,18 @@ def create_heatmap(grid_coords: Tensor, center: Tensor, scale: float) -> Tensor:
         An [H x W] heatmap tensor, normalized such that its peak is 1.
     """
     # TODO: Replace this stub code.
-    return torch.zeros_like(grid_coords[:, :, 0], dtype=torch.float)
+    H, W, _ = grid_coords.shape
+    heatmap = torch.zeros_like(grid_coords[:, :, 0], dtype=torch.float)
+
+    for i in range(H):
+        for j in range(W):
+            coord = grid_coords[i][j]
+            value = math.exp(-((center[0] - coord[0])**2 + (center[1] - coord[1])**2) / scale)
+            heatmap[coord[1]][coord[0]] = value
+    
+    heatmap = heatmap / torch.max(heatmap)
+
+    return heatmap
 
 
 class DetectionLossTargetBuilder:
@@ -105,6 +116,12 @@ class DetectionLossTargetBuilder:
 
         # TODO: Replace this stub code.
         offsets = torch.zeros(H, W, 2)
+        for i in range(H):
+            for j in range(W):
+                if heatmap[i][j] > self._heatmap_threshold:
+                    offsets[i][j][0] = cx - i
+                    offsets[i][j][1] = cy - j
+
 
         # 4. Create box size training target.
         # Given the label's bounding box size (x_size, y_size), the target size at pixel (i, j)
@@ -114,6 +131,11 @@ class DetectionLossTargetBuilder:
 
         # TODO: Replace this stub code.
         sizes = torch.zeros(H, W, 2)
+        for i in range(H):
+            for j in range(W):
+                if heatmap[i][j] > self._heatmap_threshold:
+                    offsets[i][j][0] = x_size
+                    offsets[i][j][1] = y_size
 
         # 5. Create heading training targets.
         # Given the label's heading angle yaw, the target heading at pixel (i, j)
@@ -123,6 +145,11 @@ class DetectionLossTargetBuilder:
 
         # TODO: Replace this stub code.
         headings = torch.zeros(H, W, 2)
+        for i in range(H):
+            for j in range(W):
+                if heatmap[i][j] > self._heatmap_threshold:
+                    offsets[i][j][0] = math.sin(yaw)
+                    offsets[i][j][1] = math.cos(yaw)
 
         # 6. Concatenate training targets into a [7 x H x W] tensor.
         targets = torch.cat([heatmap[:, :, None], offsets, sizes, headings], dim=-1)
