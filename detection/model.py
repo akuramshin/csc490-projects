@@ -119,7 +119,7 @@ class DetectionModel(nn.Module):
         # TODO: Replace this stub code.
         _, H, W = bev_lidar.shape
 
-        Y = self.forward(bev_lidar)
+        Y = self.forward(bev_lidar.unsqueeze(0))[0]
         heatmap = Y[0]
         offset_x = Y[1]
         offset_y = Y[2]
@@ -132,7 +132,7 @@ class DetectionModel(nn.Module):
         for i in range(H):
             for j in range(W):
                 if heatmap[i][j] == torch.max(heatmap[max(0, i-2):min(H, i+2), max(0, j-2):min(W, j+2)]):
-                    detections.append((i, j, heatmap[i][j]))
+                    detections.append([i, j, heatmap[i][j]])
         
         if len(detections) > k:
             detections.sort(key=lambda x: x[2], reverse=True)
@@ -141,19 +141,10 @@ class DetectionModel(nn.Module):
         for d in range(len(detections)):
             i = detections[d][0]
             j = detections[d][1]
-            detections[i][0] += offset_x[i][j]
-            detections[i][1] += offset_y[i][j]
-
-        for d in range(len(detections)):
-            i = detections[d][0]
-            j = detections[d][1]
-            detections[d] = (i, j, x_size[i][j], y_size[i][j], detections[i][2])
-        
-        for d in range(len(detections)):
-            i = detections[d][0]
-            j = detections[d][1]
-            theta = torch.atan2(sin_theta, cos_theta)
-            detections[d] = (i, j, theta, detections[d][2], detections[d][3], detections[d][4])
+            detections[d][0] += offset_x[i][j].item()
+            detections[d][1] += offset_y[i][j].item()
+            theta = torch.atan2(sin_theta[i][j], cos_theta[i][j])
+            detections[d] = [detections[d][0], detections[d][1], theta, x_size[i][j], y_size[i][j], detections[d][2]]
 
 
         return Detections(

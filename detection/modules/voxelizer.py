@@ -82,7 +82,8 @@ class Voxelizer(torch.nn.Module):
         print("LENGTH: {}".format(bev_voxels.shape))
         for idx, cloud in enumerate(pointclouds):
             for p in cloud:
-                if self._x_min < p[0] < self._x_max and self._y_min < p[1] < self._y_max and self._z_min < p[2] < self._z_max :
+                p[2] = max(min(p[2], self._z_max-1), self._z_min)
+                if self._x_min < p[0] < self._x_max and self._y_min < p[1] < self._y_max:
                     i = int(torch.floor((p[2] - self._z_min) / self._step).item())
                     j = int(torch.floor((self._y_max - p[1]) / self._step).item())
                     k = int(torch.floor((p[0] - self._x_min) / self._step).item())
