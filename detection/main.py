@@ -263,6 +263,9 @@ def visualize_vox(
     print("Visualizing Vox")
     visualize_bev_voxels(bev_lidar[0])
 
+    plt.savefig(f"{output_root}/voxelized_lidar.png")
+    plt.close("all")
+
 
 
 
