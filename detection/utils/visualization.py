@@ -103,3 +103,19 @@ def visualize_detections(
         )
 
     return fig, ax
+
+
+def visualize_bev_voxels(
+    bev_occupacy: torch.Tensor,
+) -> Tuple[Figure, Axes]:
+
+    fig = plt.figure()
+
+    bev_occupacy = bev_occupacy.max(1)[0]
+
+    ax = fig.add_subplot(111)
+    ax.imshow(bev_occupacy, aspect='auto', cmap=plt.cm.gray, interpolation='nearest')
+
+    return fig, ax
+
+

@@ -11,7 +11,7 @@ from detection.dataset import PandasetDataset, custom_collate
 from detection.metrics.evaluator import Evaluator
 from detection.model import DetectionModel, DetectionModelConfig
 from detection.modules.loss_function import DetectionLossFunction
-from detection.utils.visualization import visualize_detections
+from detection.utils.visualization import visualize_detections, visualize_bev_voxels
 
 
 def overfit(
@@ -239,6 +239,32 @@ def test(
         visualize_detections(lidar, detections, labels[0])
         plt.savefig(f"{output_root}/{idx:03d}.png")
         plt.close("all")
+
+
+@torch.no_grad()
+def visualize_vox(
+    data_root: str,
+    output_root: str,
+    seed: int = 42,
+    num_workers: int = 8,
+    checkpoint_path: Optional[str] = None,
+) -> None:
+    os.makedirs(output_root, exist_ok=True)
+
+    # setup model
+    model_config = DetectionModelConfig()
+
+    # setup data
+    dataset = PandasetDataset(data_root, model_config)
+    dataloader = torch.utils.data.DataLoader(dataset, collate_fn=custom_collate)
+
+    bev_lidar, _, _ = next(iter(dataloader))
+
+    print("Visualizing Vox")
+    visualize_bev_voxels(bev_lidar[0])
+
+
+
 
 
 @torch.no_grad()
