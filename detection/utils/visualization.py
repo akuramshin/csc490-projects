@@ -113,14 +113,14 @@ def visualize_bev_voxels(
     fig, ax = plt.subplots()
 
     # define the colors
-    cmap = matplotlib.colors.ListedColormap(['r', 'k'])
+    cmap = matplotlib.colors.ListedColormap(['k', 'w'])
 
     # create a normalize object the describes the limits of
     # each color
     bounds = [0., 0.5, 1.]
     norm = matplotlib.colors.BoundaryNorm(bounds, cmap.N)
 
-    bev_occupacy = bev_occupacy.max(1)[0]
+    bev_occupacy = bev_occupacy.max(0)[0]
 
     ax.imshow(bev_occupacy, interpolation='none', cmap=cmap, norm=norm)
 
