@@ -1,4 +1,5 @@
 from typing import Any, Optional, Tuple
+import matplotlib
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -109,12 +110,19 @@ def visualize_bev_voxels(
     bev_occupacy: torch.Tensor,
 ) -> Tuple[Figure, Axes]:
 
-    fig = plt.figure()
+    fig, ax = plt.subplots()
+
+    # define the colors
+    cmap = matplotlib.colors.ListedColormap(['r', 'k'])
+
+    # create a normalize object the describes the limits of
+    # each color
+    bounds = [0., 0.5, 1.]
+    norm = matplotlib.colors.BoundaryNorm(bounds, cmap.N)
 
     bev_occupacy = bev_occupacy.max(1)[0]
 
-    ax = fig.add_subplot(111)
-    ax.imshow(bev_occupacy, aspect='auto', cmap=plt.cm.gray, interpolation='nearest')
+    ax.imshow(bev_occupacy, interpolation='none', cmap=cmap, norm=norm)
 
     return fig, ax
 
