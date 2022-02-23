@@ -75,11 +75,32 @@ class Voxelizer(torch.nn.Module):
             BEV occupacy image as a [batch_size x D x H x W] tensor.
         """
         # TODO: Replace this stub code.
-        return torch.zeros(
+        bev_occ_img = torch.zeros(
             (len(pointclouds), self._depth, self._height, self._width),
             dtype=torch.bool,
             device=pointclouds[0].device,
         )
+        
+        for b in range(len(pointclouds)):
+            pointclouds_t = pointclouds[b]
+            z_min = pointclouds_t[:, 2].min()
+            z_max = pointclouds_t[:, 2].max()
+            coeff = 1 / (z_max - z_min) * (self._z_max - 1 - self._z_min)
+            pointclouds_t[:, 2] = (pointclouds_t[:, 2] - z_min) * coeff + self._z_min
+            
+            min_mask = (pointclouds_t - torch.tensor([self._x_min, self._y_min, self._z_min])) >= 0
+            max_mask = (torch.tensor([self._x_max, self._y_max, self._z_max]) - pointclouds_t) >= 0
+            mask = min_mask * max_mask
+            # print(mask[:, 2].all())
+            mask[mask.prod(dim=1) == 0] = 0
+            filtered_pointclouds_t = torch.masked_select(pointclouds_t, mask)
+            filtered_pointclouds_t = filtered_pointclouds_t.reshape(len(filtered_pointclouds_t) // 3, 3)
+            coor = (filtered_pointclouds_t - torch.tensor([self._x_min, self._y_max, self._z_min])) * torch.tensor([1, -1, 1])
+            coor = torch.div(coor, self._step, rounding_mode='floor')
+            coor= coor.type(torch.long)
+            bev_occ_img[b][coor[:, 2], coor[:, 1], coor[:, 0]] = 1
+        
+        return bev_occ_img
 
     def project_detections(self, detections: Detections) -> Detections:
         """Project detections to voxelized frame and filter out-of-bounds ones.

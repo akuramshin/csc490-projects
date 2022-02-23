@@ -246,7 +246,7 @@ def evaluate(
     data_root: str,
     output_root: str,
     seed: int = 42,
-    num_workers: int = 8,
+    num_workers: int = 5,
     checkpoint_path: Optional[str] = None,
 ) -> None:
     """Evaluate the detector on Pandaset and save its metrics.
