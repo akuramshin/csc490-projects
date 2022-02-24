@@ -74,22 +74,24 @@ class Voxelizer(torch.nn.Module):
         Returns:
             BEV occupacy image as a [batch_size x D x H x W] tensor.
         """
+        
         # TODO: Replace this stub code.
         bev_occ_img = torch.zeros(
             (len(pointclouds), self._depth, self._height, self._width),
             dtype=torch.bool,
             device=pointclouds[0].device,
         )
-        
         for b in range(len(pointclouds)):
             pointclouds_t = pointclouds[b]
-            z_min = pointclouds_t[:, 2].min()
-            z_max = pointclouds_t[:, 2].max()
-            coeff = 1 / (z_max - z_min) * (self._z_max - 1 - self._z_min)
-            pointclouds_t[:, 2] = (pointclouds_t[:, 2] - z_min) * coeff + self._z_min
+            # z_min = pointclouds_t[:, 2].min()
+            # z_max = pointclouds_t[:, 2].max()
+            # coeff = 1 / (z_max - z_min) * (self._z_max - 1 - self._z_min)
+            # pointclouds_t[:, 2] = (pointclouds_t[:, 2] - z_min) * coeff + self._z_min
+            pointclouds_t[:, 2][pointclouds_t[:, 2] < self._z_min] = self._z_min
+            pointclouds_t[:, 2][pointclouds_t[:, 2] > self._z_max - 1] = self._z_max - 1
             
-            min_mask = (pointclouds_t - torch.tensor([self._x_min, self._y_min, self._z_min])) >= 0
-            max_mask = (torch.tensor([self._x_max, self._y_max, self._z_max]) - pointclouds_t) >= 0
+            min_mask = (pointclouds_t - torch.tensor([self._x_min, self._y_min + 1, self._z_min])) >= 0
+            max_mask = (torch.tensor([self._x_max - 1, self._y_max, self._z_max - 1]) - pointclouds_t) >= 0
             mask = min_mask * max_mask
             # print(mask[:, 2].all())
             mask[mask.prod(dim=1) == 0] = 0

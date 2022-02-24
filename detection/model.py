@@ -1,4 +1,6 @@
 from dataclasses import dataclass, field
+from threading import local
+from matplotlib.pyplot import grid
 
 import torch
 from torch import Tensor, nn
@@ -116,7 +118,53 @@ class DetectionModel(nn.Module):
         Returns:
             A set of 2D bounding box detections.
         """
-        # TODO: Replace this stub code.
-        return Detections(
-            torch.zeros((0, 3)), torch.zeros(0), torch.zeros((0, 2)), torch.zeros(0)
-        )
+
+        # 1. 
+        Y = self.forward(bev_lidar.unsqueeze(0))[0]
+
+        # 2.
+        area = 25 
+        pred_heatmap, offset_x, offset_y, x_size, y_size, sin_theta, cos_theta = Y
+        H, W = pred_heatmap.shape
+        pred_heatmaps = torch.zeros(area, H + 4, W + 4)
+        for n in range(area):
+            i = n // 5
+            j = n % 5
+            # n-th heatmap is [i: -(4-i), j: -(4-j)]
+            pred_heatmaps[n] = torch.nn.functional.pad(pred_heatmap, (j ,4-j, i, 4-i), mode='constant', value=-float('Inf'))
+
+        # delete padding
+        pred_heatmaps = pred_heatmaps[:, 2: -2, 2: -2]
+        max_ix = torch.argmax(pred_heatmaps, dim=0).to('cuda')
+        mask = (max_ix == 12).to('cuda')
+        W_coords, H_coords = torch.arange(W).to('cuda'), torch.arange(H).to('cuda')
+        H_grid_coords, W_grid_coords = torch.meshgrid(H_coords, W_coords, indexing="ij")
+        grid_coords = torch.stack([H_grid_coords, W_grid_coords], dim=-1).to('cuda')  # [H x W x 2]
+        local_maxi_ix = grid_coords.masked_select(torch.stack([mask, mask], dim=-1)).to('cuda')
+        local_maxi_ix = local_maxi_ix.reshape(len(local_maxi_ix) // 2, 2).to('cuda')
+        local_maxi = pred_heatmap[local_maxi_ix[ :, 0], local_maxi_ix[ :, 1]].to('cuda')
+        topk_value, topk_ix = torch.topk(local_maxi, k)
+        topk_ix = local_maxi_ix[topk_ix, :].to('cuda')
+
+
+        # 3.
+        offset_xy = torch.stack([offset_x[topk_ix[:, 0], topk_ix[:, 1]], offset_y[topk_ix[:, 0], topk_ix[:, 1]]], dim=-1)
+        filpped_topk_ix = topk_ix.flip([-1])
+        centroids = filpped_topk_ix + offset_xy
+        
+        # 4.
+        boxes = torch.stack([x_size[topk_ix[:, 0], topk_ix[:, 1]], y_size[topk_ix[:, 0], topk_ix[:, 1]]], dim=-1)
+        
+        # 5
+        yaws = torch.atan2(sin_theta[topk_ix[:, 0], topk_ix[:, 1]], cos_theta[topk_ix[:, 0], topk_ix[:, 1]])
+            
+        # 6.
+        indices = (topk_value > score_threshold).nonzero().flatten()
+        scores = topk_value[indices]
+        centroids = centroids[indices, :]
+        boxes = boxes[indices, :]
+        yaws = yaws[indices]
+
+        
+        return Detections(centroids=centroids, yaws=yaws, boxes=boxes, scores=scores)
+

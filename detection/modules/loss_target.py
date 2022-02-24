@@ -32,8 +32,9 @@ def create_heatmap(grid_coords: Tensor, center: Tensor, scale: float) -> Tensor:
     # TODO: Replace this stub code.
     
     map = torch.exp(torch.square(grid_coords - center).sum(dim=-1) / scale * (-1))
-    map = map / map.max()
-    return map
+    map_max = map.max()
+    map_min = map.min()
+    return (map - map_min)/ (map_max - map_min)
 
 
 class DetectionLossTargetBuilder:
