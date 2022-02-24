@@ -101,7 +101,7 @@ def train(
     output_root: str,
     seed: int = 42,
     batch_size: int = 2,
-    num_workers: int = 4,
+    num_workers: int = 5,
     num_epochs: int = 5,
     log_frequency: int = 100,
     learning_rate: float = 1e-4,

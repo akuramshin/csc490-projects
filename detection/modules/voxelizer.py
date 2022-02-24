@@ -83,17 +83,13 @@ class Voxelizer(torch.nn.Module):
         )
         for b in range(len(pointclouds)):
             pointclouds_t = pointclouds[b]
-            # z_min = pointclouds_t[:, 2].min()
-            # z_max = pointclouds_t[:, 2].max()
-            # coeff = 1 / (z_max - z_min) * (self._z_max - 1 - self._z_min)
-            # pointclouds_t[:, 2] = (pointclouds_t[:, 2] - z_min) * coeff + self._z_min
+
             pointclouds_t[:, 2][pointclouds_t[:, 2] < self._z_min] = self._z_min
             pointclouds_t[:, 2][pointclouds_t[:, 2] > self._z_max - 1] = self._z_max - 1
             
-            min_mask = (pointclouds_t - torch.tensor([self._x_min, self._y_min + 1, self._z_min])) >= 0
-            max_mask = (torch.tensor([self._x_max - 1, self._y_max, self._z_max - 1]) - pointclouds_t) >= 0
-            mask = min_mask * max_mask
-            # print(mask[:, 2].all())
+            mask_inclu = (pointclouds_t - torch.tensor([self._x_min, self._y_max, self._z_min])) * torch.tensor([1, -1, 1])>= 0
+            mask_exclu = (torch.tensor([self._x_max, self._y_min, self._z_max]) - pointclouds_t) * torch.tensor([1, -1, 1]) > 0
+            mask = mask_inclu * mask_exclu
             mask[mask.prod(dim=1) == 0] = 0
             filtered_pointclouds_t = torch.masked_select(pointclouds_t, mask)
             filtered_pointclouds_t = filtered_pointclouds_t.reshape(len(filtered_pointclouds_t) // 3, 3)
