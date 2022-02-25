@@ -1,3 +1,4 @@
+from turtle import pos
 from dataclasses import dataclass
 from typing import List
 
@@ -62,7 +63,38 @@ def compute_precision_recall_curve(
         A precision/recall curve.
     """
     # TODO: Replace this stub code.
-    return PRCurve(torch.zeros(0), torch.zeros(0))
+
+    precision = torch.zeros(len(frames))
+    recall = torch.zeros(len(frames))
+
+    for i, frame in enumerate(frames):
+        detections = frame.detections.centroids
+        labels = frame.labels.centroids
+        TP = 0
+        FP = 0
+        FN = 0
+
+        for j in range(len(labels)):
+            distances = torch.sqrt((detections - labels[j])**2)
+            mask = distances > threshold
+            distances[mask] = 0
+            distances[~mask] = 1
+
+            positives = distances.sum()
+            if positives == 0:
+                FN += 1
+            elif positives == 1:
+                TP += 1
+            else:
+                TP += 1
+                FP += positives - 1
+            
+        precision[i] = TP / (TP + FP)
+        recall[i] = TP / (TP + FN)
+
+            
+
+    return PRCurve(precision, recall)
 
 
 def compute_area_under_curve(curve: PRCurve) -> float:
@@ -81,7 +113,12 @@ def compute_area_under_curve(curve: PRCurve) -> float:
         The area under the curve, as defined above.
     """
     # TODO: Replace this stub code.
-    return torch.sum(curve.recall).item() * 0.0
+    precision = curve.precision
+    recall = curve.recall
+
+    recall_shifted = torch.cat((recall, torch.tensor([0])))
+
+    return torch.sum(precision * (recall - recall_shifted[1:])).item()
 
 
 def compute_average_precision(
@@ -98,4 +135,7 @@ def compute_average_precision(
         A dataclass consisting of a PRCurve and its average precision.
     """
     # TODO: Replace this stub code.
-    return AveragePrecisionMetric(0.0, PRCurve(torch.zeros(0), torch.zeros(0)))
+    curve = compute_precision_recall_curve(frames, threshold)
+    ap = compute_area_under_curve(curve)
+
+    return AveragePrecisionMetric(ap, curve)
