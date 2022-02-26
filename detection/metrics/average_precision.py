@@ -75,7 +75,7 @@ def compute_precision_recall_curve(
         FN = 0
 
         for j in range(len(labels)):
-            distances = torch.sqrt((detections - labels[j])**2)
+            distances = torch.sqrt(torch.pow(detections - labels[j], 2).sum(dim=1))
             mask = distances > threshold
             distances[mask] = 0
             distances[~mask] = 1
