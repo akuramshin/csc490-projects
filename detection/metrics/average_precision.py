@@ -64,33 +64,33 @@ def compute_precision_recall_curve(
     """
     # TODO: Replace this stub code.
 
-    precision = torch.zeros(len(frames))
-    recall = torch.zeros(len(frames))
+    TP = torch.zeros(0)
+    FN = torch.zeros(0)
+    DS = torch.zeros(0)
 
-    for i, frame in enumerate(frames):
+    for frame in frames:
         detections = frame.detections.centroids
         labels = frame.labels.centroids
-        TP = 0
-        FP = 0
-        FN = 0
+
+        TP_i = torch.zeros(len(detections))
+        FN_i = torch.zeros(len())
 
         for j in range(len(labels)):
             distances = torch.sqrt(torch.pow(detections - labels[j], 2).sum(dim=1))
-            mask = distances > threshold
-            distances[mask] = 0
-            distances[~mask] = 1
+            mask = distances < threshold
 
-            positives = distances.sum()
-            if positives == 0:
-                FN += 1
-            elif positives == 1:
-                TP += 1
+            if len(distances[mask] > 0):
+                TP_i[distances == torch.max(distances[mask])] = 1
             else:
-                TP += 1
-                FP += positives - 1
+                FN_i[j] = 1
+        
+        TP = torch.cat((TP, TP_i))
+        FN = torch.cat((FN, FN_i))
+        DS = torch.cat((DS, frame.detections.scores[TP_i == 1]))
             
-        precision[i] = TP / (TP + FP)
-        recall[i] = TP / (TP + FN)
+            
+    TP = TP[torch.sort(DS, descending=True)[1]]
+            
 
             
 
