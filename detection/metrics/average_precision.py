@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from nis import match
 from typing import List
 
 import torch
@@ -62,7 +63,55 @@ def compute_precision_recall_curve(
         A precision/recall curve.
     """
     # TODO: Replace this stub code.
-    return PRCurve(torch.zeros(0), torch.zeros(0))
+
+
+
+    detections = torch.tensor([])
+    labels = torch.tensor([])
+    scores = torch.tensor([])
+    for i, frame in enumerate(frames):
+        batch_detections = frame.detections.centroids
+        detections = torch.cat((detections, batch_detections), dim=0)
+        batch_labels = frame.labels.centroids
+        labels = torch.cat((labels, batch_labels), dim=0)
+        batch_scores = frame.detections.scores
+        scores = torch.cat((scores, batch_scores), dim=0)
+
+    D = detections.shape[0]
+    L = labels.shape[0]
+    precision = torch.zeros(D)
+    recall = torch.zeros(D)
+    # from high to low
+    _ , indices = torch.sort(scores, descending=True)
+    sorted_detections = detections[indices, :]
+    
+    # whether distance between i-th detection and j-th label  <= threshold is in truth_table[j][i]
+    # 
+    # whether i-th detection matches j-th label                            is in match_table[j][i]
+    #
+    #                        detection
+    #         [   [                              ],
+    # labels      [                              ] ]
+    #
+    truth_table = ((sorted_detections.reshape(1, D, 2) - labels.reshape(L, 1, 2)).norm(dim=-1) <= threshold).long()
+
+    # in each row, only first 1 should be kept. Remove others 
+    max_ix_d = truth_table.argmax(dim=-1)
+    max_ix_2d = torch.stack([torch.arange(L), max_ix_d], dim=-1)
+    match_table = torch.zeros(truth_table.shape)
+    match_table[max_ix_2d[:, 0], max_ix_2d[:, 1]] = 1
+    indices = truth_table.sum(dim=-1) == 0
+    match_table[indices] = 0
+    
+    for i in range(D):
+        TP = match_table[:i+1, :].any(dim=0).sum().item()
+        FP = i + 1 - TP
+        FN = L - match_table[:i+1, :].any(dim=1).sum().item()
+
+        precision[i] = TP / (TP + FP)
+        recall[i] = TP / (TP + FN)
+
+    return PRCurve(precision, recall)
 
 
 def compute_area_under_curve(curve: PRCurve) -> float:
@@ -81,7 +130,12 @@ def compute_area_under_curve(curve: PRCurve) -> float:
         The area under the curve, as defined above.
     """
     # TODO: Replace this stub code.
-    return torch.sum(curve.recall).item() * 0.0
+    precision = curve.precision
+    recall = curve.recall
+
+    recall_shifted = torch.cat((torch.tensor([0]), recall))
+
+    return torch.sum(precision * (recall - recall_shifted[:-1])).item()
 
 
 def compute_average_precision(
@@ -98,4 +152,7 @@ def compute_average_precision(
         A dataclass consisting of a PRCurve and its average precision.
     """
     # TODO: Replace this stub code.
-    return AveragePrecisionMetric(0.0, PRCurve(torch.zeros(0), torch.zeros(0)))
+    curve = compute_precision_recall_curve(frames, threshold)
+    ap = compute_area_under_curve(curve)
+
+    return AveragePrecisionMetric(ap, curve)
