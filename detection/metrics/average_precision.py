@@ -63,52 +63,63 @@ def compute_precision_recall_curve(
         A precision/recall curve.
     """
     # TODO: Replace this stub code.
-    detections = torch.tensor([])
-    labels = torch.tensor([])
-    scores = torch.tensor([])
-    for i, frame in enumerate(frames):
+    all_detections_binary = torch.tensor([])
+    labels_count = 0
+    all_scores = torch.tensor([])
+    for _, frame in enumerate(frames):
         batch_detections = frame.detections.centroids
-        detections = torch.cat((detections, batch_detections), dim=0)
         batch_labels = frame.labels.centroids
-        labels = torch.cat((labels, batch_labels), dim=0)
         batch_scores = frame.detections.scores
-        scores = torch.cat((scores, batch_scores), dim=0)
+        d = batch_detections.shape[0]
+        l = batch_labels.shape[0]
+        labels_count += l
 
-    D = detections.shape[0]
-    L = labels.shape[0]
-    precision = torch.zeros(D)
-    recall = torch.zeros(D)
-    # from high to low
-    _ , indices = torch.sort(scores, descending=True)
-    sorted_detections = detections[indices, :]
-    
-    # whether distance between i-th detection and j-th label  <= threshold is in truth_table[j][i]
-    # 
-    # whether i-th detection matches j-th label                            is in match_table[j][i]
-    #
-    #                        detection
-    #         [   [                              ],
-    # labels      [                              ] ]
-    #
-    truth_table = ((sorted_detections.reshape(1, D, 2) - labels.reshape(L, 1, 2)).norm(dim=-1) <= threshold).long().to('cuda')
-    # in each row, only first 1 should be kept. Remove others 
-    max_ix_d = truth_table.argmax(dim=-1)
-    max_ix_2d = torch.stack([torch.arange(L).to('cuda'), max_ix_d], dim=-1)
-    match_table = torch.zeros(truth_table.shape).to('cuda')
-    match_table[max_ix_2d[:, 0], max_ix_2d[:, 1]] = 1
-    indices = truth_table.sum(dim=-1) == 0
-    match_table[indices] = 0
-    
-    for i in range(D):
-        TP = match_table[:i+1, :].any(dim=0).sum().item()
-        FP = i + 1 - TP
-        FN = L - match_table[:i+1, :].any(dim=1).sum().item()
+        # in binary array, 0 means unmatched and 1 means matched
+        detections_match_binary = torch.zeros(d)
+        labels_match_binary = torch.zeros(l)
+        
+        # in each frame, sort dectections with scores (high score ~ low score)
+        sorted_scores, indices = torch.sort(batch_scores, descending=True)
+        sorted_detections = batch_detections[indices, :]
+        
+        # distance_table[j][i] =  i-th detection ~ j-th label
+        distance_table = (sorted_detections.reshape(1, d, 2) - batch_labels.reshape(l, 1, 2)).norm(dim=-1)
 
-        precision[i] = TP / (TP + FP)
-        recall[i] = TP / (TP + FN)
+        # in distance_table, if distance > threshold, then set the entry as 0
+        mask = distance_table <= threshold
+        masked_distance_table = distance_table * mask.long()
+        
+        # find a label for i-th detection. If the label is found, mark 1 in the corresponding indexes in <detections_match_binary> and <labels_match_binary>
+        # loop from detections with high scores to low
+        for i in range(d):
+            distances = masked_distance_table[:, i].reshape(l)
+            # If the label is matched, then set the element in distance array as 0
+            labels_binary_mask = (labels_match_binary == 0).long()
+            masked_distances = distances * labels_binary_mask
+            # indexs of available labels
+            positive_distances_indices = masked_distances.nonzero().flatten()
+            # sorted indexs of available labels, from smallest distance to largest
+            _, labels_indices = masked_distances[positive_distances_indices].sort()
+            if len(labels_indices):
+                first_available_labels_ix = labels_indices[0]
+                labels_match_binary[first_available_labels_ix] = 1
+                detections_match_binary[i] = 1
+        
+        all_scores = torch.cat((all_scores, sorted_scores), dim=0)
+        all_detections_binary = torch.cat((all_detections_binary, detections_match_binary), dim=0)
+
+    detections_count = len(all_detections_binary)
+    
+    # sort detections with corresponding scores
+    _, indices = all_scores.sort(descending=True)
+    sorted_detections_binary = all_detections_binary[indices]
+    
+    # calculate precision and recall
+    TP = sorted_detections_binary.cumsum(dim=0)
+    precision = TP / torch.arange(1, detections_count + 1)
+    recall = TP / labels_count
 
     return PRCurve(precision, recall)
-
 
 def compute_area_under_curve(curve: PRCurve) -> float:
     """Return the area under the given curve.
