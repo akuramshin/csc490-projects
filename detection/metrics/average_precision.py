@@ -63,9 +63,6 @@ def compute_precision_recall_curve(
         A precision/recall curve.
     """
     # TODO: Replace this stub code.
-
-
-
     detections = torch.tensor([])
     labels = torch.tensor([])
     scores = torch.tensor([])
@@ -93,12 +90,11 @@ def compute_precision_recall_curve(
     #         [   [                              ],
     # labels      [                              ] ]
     #
-    truth_table = ((sorted_detections.reshape(1, D, 2) - labels.reshape(L, 1, 2)).norm(dim=-1) <= threshold).long()
-
+    truth_table = ((sorted_detections.reshape(1, D, 2) - labels.reshape(L, 1, 2)).norm(dim=-1) <= threshold).long().to('cuda')
     # in each row, only first 1 should be kept. Remove others 
     max_ix_d = truth_table.argmax(dim=-1)
-    max_ix_2d = torch.stack([torch.arange(L), max_ix_d], dim=-1)
-    match_table = torch.zeros(truth_table.shape)
+    max_ix_2d = torch.stack([torch.arange(L).to('cuda'), max_ix_d], dim=-1)
+    match_table = torch.zeros(truth_table.shape).to('cuda')
     match_table[max_ix_2d[:, 0], max_ix_2d[:, 1]] = 1
     indices = truth_table.sum(dim=-1) == 0
     match_table[indices] = 0
