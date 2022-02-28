@@ -80,7 +80,7 @@ def compute_precision_recall_curve(
             mask = distances < threshold
 
             if len(distances[mask] > 0):
-                TP_i[distances == torch.max(distances[mask])] = 1
+                TP_i[distances == torch.min(distances[mask])] = 1
             else:
                 FN_i[j] = 1
         
@@ -90,9 +90,22 @@ def compute_precision_recall_curve(
             
             
     TP = TP[torch.sort(DS, descending=True)[1]]
-            
+    
+    precision = torch.zeros(len(TP))
+    recall = torch.zeros(len(TP))
 
-            
+    tp_n = 0
+    fp_n = 0
+    fn_n = torch.sum(FN).item()
+    for n in range(len(TP)):
+        if TP[n] == 1:
+            tp_n += 1
+        else:
+            fp_n += 1
+        
+        precision[n] = tp_n / (tp_n + fp_n)
+        recall[n] = tp_n / (tp_n + fn_n)
+        
 
     return PRCurve(precision, recall)
 
