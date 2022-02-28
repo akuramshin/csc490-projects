@@ -73,7 +73,7 @@ def compute_precision_recall_curve(
         labels = frame.labels.centroids
 
         TP_i = torch.zeros(len(detections))
-        FN_i = torch.zeros(len())
+        FN_i = torch.zeros(len(labels))
 
         for j in range(len(labels)):
             distances = torch.sqrt(torch.pow(detections - labels[j], 2).sum(dim=1))
@@ -129,9 +129,9 @@ def compute_area_under_curve(curve: PRCurve) -> float:
     precision = curve.precision
     recall = curve.recall
 
-    recall_shifted = torch.cat((recall, torch.tensor([0])))
+    recall_shifted = torch.cat((torch.tensor([0]), recall))
 
-    return torch.sum(precision * (recall - recall_shifted[1:])).item()
+    return torch.sum(precision * (recall - recall_shifted[:-1])).item()
 
 
 def compute_average_precision(
