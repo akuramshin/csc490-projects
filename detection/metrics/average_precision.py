@@ -63,6 +63,7 @@ def compute_precision_recall_curve(
         A precision/recall curve.
     """
     # TODO: Replace this stub code.
+
     all_detections_binary = torch.tensor([])
     labels_count = 0
     all_scores = torch.tensor([])
@@ -81,25 +82,25 @@ def compute_precision_recall_curve(
         # in each frame, sort dectections with scores (high score ~ low score)
         sorted_scores, indices = torch.sort(batch_scores, descending=True)
         sorted_detections = batch_detections[indices, :]
-        
+
         # distance_table[j][i] =  i-th detection ~ j-th label
         distance_table = (sorted_detections.reshape(1, d, 2) - batch_labels.reshape(l, 1, 2)).norm(dim=-1)
 
         # in distance_table, if distance > threshold, then set the entry as 0
         mask = distance_table <= threshold
-        masked_distance_table = distance_table * mask.long()
+        distance_table[~mask] = -1
         
         # find a label for i-th detection. If the label is found, mark 1 in the corresponding indexes in <detections_match_binary> and <labels_match_binary>
         # loop from detections with high scores to low
         for i in range(d):
-            distances = masked_distance_table[:, i].reshape(l)
+            distances = distance_table[:, i].reshape(l)
             # If the label is matched, then set the element in distance array as 0
-            labels_binary_mask = (labels_match_binary == 0).long()
-            masked_distances = distances * labels_binary_mask
+            labels_binary_mask = (labels_match_binary >= 0)
+            distances[~labels_binary_mask] = -1
             # indexs of available labels
-            positive_distances_indices = masked_distances.nonzero().flatten()
+            positive_distances_indices = (distances >= 0).nonzero().flatten()
             # sorted indexs of available labels, from smallest distance to largest
-            _, labels_indices = masked_distances[positive_distances_indices].sort()
+            _, labels_indices = distances[positive_distances_indices].sort()
             if len(labels_indices):
                 first_available_labels_ix = labels_indices[0]
                 labels_match_binary[first_available_labels_ix] = 1
