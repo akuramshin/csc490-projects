@@ -31,6 +31,7 @@ class DetectionModelConfig:
             heading_loss_weight=100.0,
             heatmap_threshold=0.01,
             heatmap_norm_scale=20.0,
+            loss_func='mse',
         )
     )
 
@@ -143,6 +144,8 @@ class DetectionModel(nn.Module):
         local_maxi_ix = grid_coords.masked_select(torch.stack([mask, mask], dim=-1)).to('cuda')
         local_maxi_ix = local_maxi_ix.reshape(len(local_maxi_ix) // 2, 2).to('cuda')
         local_maxi = pred_heatmap[local_maxi_ix[ :, 0], local_maxi_ix[ :, 1]].to('cuda')
+        if len(local_maxi) < k:
+            k = len(local_maxi)
         topk_value, topk_ix = torch.topk(local_maxi, k)
         topk_ix = local_maxi_ix[topk_ix, :].to('cuda')
 
