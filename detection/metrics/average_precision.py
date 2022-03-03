@@ -95,8 +95,8 @@ def compute_precision_recall_curve(
         for i in range(d):
             distances = distance_table[:, i].reshape(l)
             # If the label is matched, then set the element in distance array as 0
-            labels_binary_mask = (labels_match_binary >= 0)
-            distances[~labels_binary_mask] = -1
+            labels_binary_mask = (labels_match_binary > 0)
+            distances[labels_binary_mask] = -1
             # indexs of available labels
             positive_distances_indices = (distances >= 0).nonzero().flatten()
             # sorted indexs of available labels, from smallest distance to largest
