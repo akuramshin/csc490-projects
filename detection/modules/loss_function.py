@@ -1,12 +1,14 @@
 from dataclasses import dataclass
+import string
 from typing import Tuple
 
 import torch
 from torch import Tensor
 
 
+
 def heatmap_weighted_mse_loss(
-    targets: Tensor, predictions: Tensor, heatmap: Tensor, heatmap_threshold: float
+    targets: Tensor, predictions: Tensor, heatmap: Tensor, heatmap_threshold: float, alpha=None, gamma=None
 ) -> Tensor:
     """Compute the mean squared error (MSE) loss between `predictions` and `targets`, weighted by a heatmap.
 
@@ -39,6 +41,60 @@ def heatmap_weighted_mse_loss(
     return result.mean()
 
 
+def heatmap_weighted_focal_loss(
+    targets: Tensor, predictions: Tensor, heatmap: Tensor, heatmap_threshold: float, alpha:float = None, gamma: float=2
+) -> Tensor:
+    
+    # hyperparameter ref: https://arxiv.org/abs/1708.02002
+    # alpha = 0.75
+    
+    focal = (- (1 - predictions) ** gamma * targets* torch.log(predictions) - predictions ** gamma * (1 - targets) * torch.log(1 - predictions)).mean(dim=1)
+    heatmap = heatmap.squeeze(dim=1)
+    mask = heatmap > heatmap_threshold
+    result = focal * heatmap
+    result[~mask] = 0
+    return result.mean()
+
+def heatmap_weighted_alpha_balanced_loss(
+    targets: Tensor, predictions: Tensor, heatmap: Tensor, heatmap_threshold: float, alpha: float=0.75, gamma: float=None
+) -> Tensor:
+    
+    # hyperparameter ref: https://arxiv.org/abs/1708.02002
+    # gamma = 2
+    # alpha = 0.25
+    
+    a_balanced = (- alpha * targets* torch.log(predictions) - (1 - alpha) * (1 - targets) * torch.log(1 - predictions)).mean(dim=1)
+    heatmap = heatmap.squeeze(dim=1)
+    mask = heatmap > heatmap_threshold
+    result = a_balanced * heatmap
+    result[~mask] = 0
+    return result.mean()
+
+
+def heatmap_weighted_alpha_balanced_focal_loss(
+    targets: Tensor, predictions: Tensor, heatmap: Tensor, heatmap_threshold: float, gamma: float=2, alpha: float=0.25
+) -> Tensor:
+    
+    # hyperparameter ref: https://arxiv.org/abs/1708.02002
+    # gamma = 2
+    # alpha = 0.25
+    
+    focal = (- alpha* (1-predictions) ** gamma * targets* torch.log(predictions) - (1 - alpha) * predictions ** gamma * (1 - targets) * torch.log(1 - predictions)).mean(dim=1)
+    heatmap = heatmap.squeeze(dim=1)
+    mask = heatmap > heatmap_threshold
+    result = focal * heatmap
+    result[~mask] = 0
+    return result.mean()
+
+
+LOSS_FUNCTIONS={
+    'mse': heatmap_weighted_mse_loss,
+    'focal' : heatmap_weighted_focal_loss,
+    'alpha-balanced' : heatmap_weighted_alpha_balanced_loss,
+    'alpha-balanced-focal' : heatmap_weighted_alpha_balanced_focal_loss, 
+}
+
+
 @dataclass
 class DetectionLossConfig:
     """Detection loss function configuration.
@@ -62,6 +118,7 @@ class DetectionLossConfig:
     heading_loss_weight: float
     heatmap_threshold: float
     heatmap_norm_scale: float
+    loss_func: string
 
 
 @dataclass
@@ -85,6 +142,23 @@ class DetectionLossFunction(torch.nn.Module):
         self._size_loss_weight = config.size_loss_weight
         self._heading_loss_weight = config.heading_loss_weight
         self._heatmap_threshold = config.heatmap_threshold
+        
+        # loss function setting
+        func = config.loss_func.split('_')
+        loss_func_name = func[0]
+        self._loss_func = loss_func_name
+        self._alpha = None
+        self._gamma = None
+        
+        if len(func) == 3:
+            self._alpha = float(func[1])
+            self._gamma = float(func[2])
+        elif len(func) == 2:
+            if loss_func_name == 'focal':
+                self._gamma = float(func[1])
+            elif loss_func_name == 'alpha_balanced':
+                self._alpha = float(func[1])
+
 
     def forward(
         self, predictions: Tensor, targets: Tensor
@@ -113,15 +187,21 @@ class DetectionLossFunction(torch.nn.Module):
         predicted_headings = predictions[:, 5:7]  # [B x 2 x H x W]
 
         # 3. Compute individual loss terms for heatmap, offset, size, and heading.
-        heatmap_loss = ((target_heatmap - predicted_heatmap) ** 2).mean()
+        if self._loss_func == 'mse':
+            heatmap_loss = ((target_heatmap - predicted_heatmap) ** 2).mean()
+        elif self._loss_func == 'focal':
+            heatmap_loss = (- (1 - predicted_heatmap) ** self._gamma * target_heatmap * torch.log(predicted_heatmap) - predicted_heatmap ** self._gamma * (1 - target_heatmap) * torch.log(1 - predicted_heatmap)).mean()
+        elif self._loss_func == 'alpha-balanced-focal':
+            heatmap_loss = (- self._alpha* (1 - predicted_heatmap) ** self._gamma * target_heatmap * torch.log(predicted_heatmap) - (1 - self._alpha) * predicted_heatmap ** self._gamma * (1 - target_heatmap) * torch.log(1 - predicted_heatmap)).mean()
+
         offset_loss = heatmap_weighted_mse_loss(
-            target_offsets, predicted_offsets, target_heatmap, self._heatmap_threshold
+            target_offsets, predicted_offsets, target_heatmap, self._heatmap_threshold, self._alpha, self._gamma
         )
         size_loss = heatmap_weighted_mse_loss(
-            target_sizes, predicted_sizes, target_heatmap, self._heatmap_threshold
+            target_sizes, predicted_sizes, target_heatmap, self._heatmap_threshold, self._alpha, self._gamma
         )
         heading_loss = heatmap_weighted_mse_loss(
-            target_headings, predicted_headings, target_heatmap, self._heatmap_threshold
+            target_headings, predicted_headings, target_heatmap, self._heatmap_threshold, self._alpha, self._gamma
         )
 
         # 4. Aggregate losses using the configured weights.
