@@ -8,7 +8,7 @@ from torch import Tensor
 
 
 def heatmap_weighted_mse_loss(
-    targets: Tensor, predictions: Tensor, heatmap: Tensor, heatmap_threshold: float, alpha=None, gamma=None
+    targets: Tensor, predictions: Tensor, heatmap: Tensor, heatmap_threshold: float
 ) -> Tensor:
     """Compute the mean squared error (MSE) loss between `predictions` and `targets`, weighted by a heatmap.
 
@@ -119,6 +119,7 @@ class DetectionLossConfig:
     heatmap_threshold: float
     heatmap_norm_scale: float
     loss_func: string
+    kernel: string
 
 
 @dataclass
@@ -195,13 +196,13 @@ class DetectionLossFunction(torch.nn.Module):
             heatmap_loss = (- self._alpha* (1 - predicted_heatmap) ** self._gamma * target_heatmap * torch.log(predicted_heatmap) - (1 - self._alpha) * predicted_heatmap ** self._gamma * (1 - target_heatmap) * torch.log(1 - predicted_heatmap)).mean()
 
         offset_loss = heatmap_weighted_mse_loss(
-            target_offsets, predicted_offsets, target_heatmap, self._heatmap_threshold, self._alpha, self._gamma
+            target_offsets, predicted_offsets, target_heatmap, self._heatmap_threshold
         )
         size_loss = heatmap_weighted_mse_loss(
-            target_sizes, predicted_sizes, target_heatmap, self._heatmap_threshold, self._alpha, self._gamma
+            target_sizes, predicted_sizes, target_heatmap, self._heatmap_threshold
         )
         heading_loss = heatmap_weighted_mse_loss(
-            target_headings, predicted_headings, target_heatmap, self._heatmap_threshold, self._alpha, self._gamma
+            target_headings, predicted_headings, target_heatmap, self._heatmap_threshold
         )
 
         # 4. Aggregate losses using the configured weights.

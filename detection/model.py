@@ -32,6 +32,7 @@ class DetectionModelConfig:
             heatmap_threshold=0.01,
             heatmap_norm_scale=20.0,
             loss_func='mse',
+            kernel='iso',
         )
     )
 
@@ -119,6 +120,7 @@ class DetectionModel(nn.Module):
         Returns:
             A set of 2D bounding box detections.
         """
+        device = bev_lidar.device
 
         # 1. 
         Y = self.forward(bev_lidar.unsqueeze(0))[0]
@@ -136,14 +138,14 @@ class DetectionModel(nn.Module):
 
         # delete padding
         pred_heatmaps = pred_heatmaps[:, 2: -2, 2: -2]
-        max_ix = torch.argmax(pred_heatmaps, dim=0).to('cuda')
-        mask = (max_ix == 12).to('cuda')
-        W_coords, H_coords = torch.arange(W).to('cuda'), torch.arange(H).to('cuda')
+        max_ix = torch.argmax(pred_heatmaps, dim=0).to(device=device)
+        mask = (max_ix == 12).to(device=device)
+        W_coords, H_coords = torch.arange(W).to(device=device), torch.arange(H).to(device=device)
         H_grid_coords, W_grid_coords = torch.meshgrid(H_coords, W_coords, indexing="ij")
-        grid_coords = torch.stack([H_grid_coords, W_grid_coords], dim=-1).to('cuda')  # [H x W x 2]
-        local_maxi_ix = grid_coords.masked_select(torch.stack([mask, mask], dim=-1)).to('cuda')
-        local_maxi_ix = local_maxi_ix.reshape(len(local_maxi_ix) // 2, 2).to('cuda')
-        local_maxi = pred_heatmap[local_maxi_ix[ :, 0], local_maxi_ix[ :, 1]].to('cuda')
+        grid_coords = torch.stack([H_grid_coords, W_grid_coords], dim=-1).to(device=device)  # [H x W x 2]
+        local_maxi_ix = grid_coords.masked_select(torch.stack([mask, mask], dim=-1)).to(device=device)
+        local_maxi_ix = local_maxi_ix.reshape(len(local_maxi_ix) // 2, 2).to(device=device)
+        local_maxi = pred_heatmap[local_maxi_ix[ :, 0], local_maxi_ix[ :, 1]].to(device=device)
         if len(local_maxi) < k:
             k = len(local_maxi)
         topk_value, topk_ix = torch.topk(local_maxi, k)

@@ -7,8 +7,12 @@ from torch import Tensor
 from detection.modules.loss_function import DetectionLossConfig
 from detection.types import Detections
 
-
-def create_heatmap(grid_coords: Tensor, center: Tensor, scale: float) -> Tensor:
+KERNELS = {
+    'iso': torch.Tensor([[1, 0], [0, 1]]),
+    'aniso': torch.Tensor([[1, 0], [0, 2]]),
+    'rotate': torch.Tensor([[1, 0.7], [0.7, 2]])
+}
+def create_heatmap(grid_coords: Tensor, center: Tensor, scale: float, kernel: Tensor) -> Tensor:
     """Return a heatmap based on a Gaussian kernel with center `center` and scale `scale`.
 
     Specifically, each pixel with coordinates (x, y) is assigned a heatmap value
@@ -30,8 +34,10 @@ def create_heatmap(grid_coords: Tensor, center: Tensor, scale: float) -> Tensor:
         An [H x W] heatmap tensor, normalized such that its peak is 1.
     """
     # TODO: Replace this stub code.
+    inversed_kernel = kernel.inverse()
     
-    map = torch.exp(torch.square(grid_coords - center).sum(dim=-1) / scale * (-1))
+    nomi = (torch.square(grid_coords - center) * torch.Tensor([inversed_kernel[0][0], inversed_kernel[1][1]])).sum(dim=-1) + (grid_coords - center).prod(dim=-1) * (inversed_kernel[0][1] + inversed_kernel[1][0])
+    map = torch.exp(nomi / scale * (-1))
     map_max = map.max()
     map_min = map.min()
     return (map - map_min)/ (map_max - map_min)
@@ -54,6 +60,7 @@ class DetectionLossTargetBuilder:
         self._bev_size = bev_size
         self._heatmap_threshold = config.heatmap_threshold
         self._heatmap_norm_scale = config.heatmap_norm_scale
+        self._kernel = config.kernel
 
     def build_target_tensor_for_label(
         self, cx: float, cy: float, yaw: float, x_size: float, y_size: float
@@ -99,7 +106,7 @@ class DetectionLossTargetBuilder:
         # 2. Create heatmap training targets by invoking the `create_heatmap` function.
         center = torch.tensor([cx, cy])
         scale = (x_size ** 2 + y_size ** 2) / self._heatmap_norm_scale
-        heatmap = create_heatmap(grid_coords, center=center, scale=scale)  # [H x W]
+        heatmap = create_heatmap(grid_coords, center=center, scale=scale, kernel=KERNELS.get(self._kernel))  # [H x W]
 
         # 3. Create offset training targets.
         # Given the label's center (cx, cy), the target offset at pixel (i, j) equals

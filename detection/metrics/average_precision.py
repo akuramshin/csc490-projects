@@ -98,11 +98,11 @@ def compute_precision_recall_curve(
             labels_binary_mask = (labels_match_binary > 0)
             distances[labels_binary_mask] = -1
             # indexs of available labels
-            positive_distances_indices = (distances >= 0).nonzero().flatten()
-            # sorted indexs of available labels, from smallest distance to largest
-            _, labels_indices = distances[positive_distances_indices].sort()
+            labels_indices = (distances >= 0).nonzero().flatten()
+            # sorted indexs of labels indices, from smallest distance to largest
+            _, indices_of_labels_indices = distances[labels_indices].sort()
             if len(labels_indices):
-                first_available_labels_ix = labels_indices[0]
+                first_available_labels_ix = labels_indices[indices_of_labels_indices[0]]
                 labels_match_binary[first_available_labels_ix] = 1
                 detections_match_binary[i] = 1
         
