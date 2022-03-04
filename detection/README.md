@@ -17,7 +17,7 @@ python -m detection.main overfit --data_root=<your_path_to_dataset> --output_roo
 This command will write model checkpoints and visualizations to `<your_path_to_outputs>`.
 
 `<heatmap_loss_function>` is the loss function in the process of building heatmap, in the format of `<name>_<hyperparameters>`. `<name>` should be `mse`(default), `focal`
-or `abfocal` which means MSE loss, Focal loss and alpha balanced focal loss respectively. Focal loss only has one hyperparameter $\gamma$, so it is in the format `focal_<gamma>`, e.g. focal_1. Alpha balanced loss has 2 hyperparameters, $\alpha$ and $\gamma$. It is in the format of `abfocal_<alpha>_<gamma>`, e.g. abfocal_0.5_0.
+or `abfocal` which means MSE loss, Focal loss and alpha balanced focal loss respectively. Focal loss only has one hyperparameter gamma, so it is in the format `focal_<gamma>`, e.g. focal_1. Alpha balanced loss has 2 hyperparameters, alpha and gamma. It is in the format of `abfocal_<alpha>_<gamma>`, e.g. abfocal_0.5_0.
 
 `<kernel>` means the type of gaussian kernel applied. It should be `iso`(default), `aniso`,  `rotate`, which indicates isotropic, anisotropic, rotated kernel respectively. 
 
@@ -33,7 +33,7 @@ python -m detection.main train --data_root=<your_path_to_dataset> --output_root=
 This command will write model checkpoints and visualizations to `<your_path_to_outputs>`.
 
 `<heatmap_loss_function>` is the loss function in the process of building heatmap, in the format of `<name>_<hyperparameters>`. `<name>` should be `mse`(default), `focal`
-or `abfocal` which means MSE loss, Focal loss and alpha balanced focal loss respectively. Focal loss only has one hyperparameter $\gamma$, so it is in the format `focal_<gamma>`, e.g. focal_1. Alpha balanced loss has 2 hyperparameters, $\alpha$ and $\gamma$. It is in the format of `abfocal_<alpha>_<gamma>`, e.g. abfocal_0.5_0.
+or `abfocal` which means MSE loss, Focal loss and alpha balanced focal loss respectively. Focal loss only has one hyperparameter gamma, so it is in the format `focal_<gamma>`, e.g. focal_1. Alpha balanced loss has 2 hyperparameters, alpha and gamma. It is in the format of `abfocal_<alpha>_<gamma>`, e.g. abfocal_0.5_0.
 
 `<kernel>` means the type of gaussian kernel applied. It should be `iso`(default), `aniso`,  `rotate`, which indicates isotropic, anisotropic, rotated kernel respectively. 
 
