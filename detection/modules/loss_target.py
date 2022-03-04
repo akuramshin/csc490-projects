@@ -2,16 +2,12 @@ import math
 from typing import Tuple
 
 import torch
-from torch import Tensor
+from torch import Tensor, tensor
 
 from detection.modules.loss_function import DetectionLossConfig
 from detection.types import Detections
 
-KERNELS = {
-    'iso': torch.Tensor([[1, 0], [0, 1]]),
-    'aniso': torch.Tensor([[1, 0], [0, 2]]),
-    'rotate': torch.Tensor([[1, 0.7], [0.7, 2]])
-}
+
 def create_heatmap(grid_coords: Tensor, center: Tensor, scale: float, kernel: Tensor) -> Tensor:
     """Return a heatmap based on a Gaussian kernel with center `center` and scale `scale`.
 
@@ -106,7 +102,23 @@ class DetectionLossTargetBuilder:
         # 2. Create heatmap training targets by invoking the `create_heatmap` function.
         center = torch.tensor([cx, cy])
         scale = (x_size ** 2 + y_size ** 2) / self._heatmap_norm_scale
-        heatmap = create_heatmap(grid_coords, center=center, scale=scale, kernel=KERNELS.get(self._kernel))  # [H x W]
+        
+        std_kernel = torch.Tensor([[1, 0], [0, 1]])
+        if self._kernel == 'iso':
+            kernel = std_kernel
+        elif self._kernel == 'aniso':
+            kernel = std_kernel
+            kernel[1][1] = y_size / x_size
+        elif self.std_kernel == 'rotate':
+            kernel = std_kernel
+            kernel[1][1] = y_size / x_size
+            c = math.cos(yaw)
+            s = math.sin(yaw)
+            rot_mat = torch.Tensor([[c, s], [-s, c]])
+            kernel = rot_mat @ kernel
+            
+            
+        heatmap = create_heatmap(grid_coords, center=center, scale=scale, kernel=kernel)  # [H x W]
 
         # 3. Create offset training targets.
         # Given the label's center (cx, cy), the target offset at pixel (i, j) equals
