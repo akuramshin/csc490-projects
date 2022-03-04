@@ -109,7 +109,7 @@ class DetectionLossTargetBuilder:
         elif self._kernel == 'aniso':
             kernel = std_kernel
             kernel[1][1] = y_size / x_size
-        elif self.std_kernel == 'rotate':
+        elif self._kernel == 'rotate':
             kernel = std_kernel
             kernel[1][1] = y_size / x_size
             c = math.cos(yaw)
