@@ -22,6 +22,7 @@ def overfit(
     log_frequency: int = 100,
     learning_rate: float = 1e-4,
     loss_func: str = 'mse',
+    kernel: str = 'iso',
 ) -> None:
     """Overfit detector to one frame of the Pandaset dataset.
 
@@ -45,6 +46,7 @@ def overfit(
     # setup model
     model_config = DetectionModelConfig()
     model_config.loss.loss_func = loss_func
+    model_config.loss.kernel = kernel
     model = DetectionModel(model_config).to(device)
 
     # setup data

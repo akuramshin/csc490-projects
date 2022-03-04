@@ -33,7 +33,8 @@ def create_heatmap(grid_coords: Tensor, center: Tensor, scale: float, kernel: Te
     inversed_kernel = kernel.inverse()
     
     nomi = (torch.square(grid_coords - center) * torch.Tensor([inversed_kernel[0][0], inversed_kernel[1][1]])).sum(dim=-1) + (grid_coords - center).prod(dim=-1) * (inversed_kernel[0][1] + inversed_kernel[1][0])
-    map = torch.exp(nomi / scale * (-1))
+    power = nomi / scale * (-1)
+    map = torch.exp(power -power.max())
     map_max = map.max()
     map_min = map.min()
     return (map - map_min)/ (map_max - map_min)
@@ -115,9 +116,10 @@ class DetectionLossTargetBuilder:
             c = math.cos(yaw)
             s = math.sin(yaw)
             rot_mat = torch.Tensor([[c, s], [-s, c]])
-            kernel = rot_mat @ kernel
-            
-            
+            kernel = rot_mat.T @ kernel @ rot_mat
+            if kernel[0][0] != 0:
+                kernel = kernel / kernel[0][0]
+
         heatmap = create_heatmap(grid_coords, center=center, scale=scale, kernel=kernel)  # [H x W]
 
         # 3. Create offset training targets.
@@ -192,5 +194,6 @@ class DetectionLossTargetBuilder:
         heatmap_max_value, heatmap_argmax_id = heatmaps.max(dim=0)  # [H x W], [H x W]
         gridh, gridw = torch.meshgrid(torch.arange(H), torch.arange(W), indexing="ij")
         target_tensor_max = target_tensor[heatmap_argmax_id, :, gridh, gridw]
+
         assert torch.all(heatmap_max_value == target_tensor_max[:, :, 0])
         return target_tensor_max.permute(2, 0, 1)  # [7 x H x W]

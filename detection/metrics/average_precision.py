@@ -86,7 +86,7 @@ def compute_precision_recall_curve(
         # distance_table[j][i] =  i-th detection ~ j-th label
         distance_table = (sorted_detections.reshape(1, d, 2) - batch_labels.reshape(l, 1, 2)).norm(dim=-1)
 
-        # in distance_table, if distance > threshold, then set the entry as 0
+        # in distance_table, if distance > threshold, then set the entry as -1
         mask = distance_table <= threshold
         distance_table[~mask] = -1
         
@@ -94,7 +94,7 @@ def compute_precision_recall_curve(
         # loop from detections with high scores to low
         for i in range(d):
             distances = distance_table[:, i].reshape(l)
-            # If the label is matched, then set the element in distance array as 0
+            # If the label is matched, then set the element in distance array as -1
             labels_binary_mask = (labels_match_binary > 0)
             distances[labels_binary_mask] = -1
             # indexs of available labels
