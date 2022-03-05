@@ -8,7 +8,7 @@ from detection.modules.loss_function import DetectionLossConfig
 from detection.types import Detections
 
 
-def create_heatmap(grid_coords: Tensor, center: Tensor, scale: float, kernel: Tensor) -> Tensor:
+def create_iso_heatmap(grid_coords: Tensor, center: Tensor, scale: float) -> Tensor:
     """Return a heatmap based on a Gaussian kernel with center `center` and scale `scale`.
 
     Specifically, each pixel with coordinates (x, y) is assigned a heatmap value
@@ -30,11 +30,57 @@ def create_heatmap(grid_coords: Tensor, center: Tensor, scale: float, kernel: Te
         An [H x W] heatmap tensor, normalized such that its peak is 1.
     """
     # TODO: Replace this stub code.
-    inversed_kernel = kernel.inverse()
-    
-    nomi = (torch.square(grid_coords - center) * torch.Tensor([inversed_kernel[0][0], inversed_kernel[1][1]])).sum(dim=-1) + (grid_coords - center).prod(dim=-1) * (inversed_kernel[0][1] + inversed_kernel[1][0])
-    power = nomi / scale * (-1)
+    power = torch.square(grid_coords - center).sum(dim=-1) / scale * (-1)
     map = torch.exp(power -power.max())
+    map_max = map.max()
+    map_min = map.min()
+    return (map - map_min)/ (map_max - map_min)
+
+def create_aniso_heatmap(grid_coords: Tensor, center: Tensor, scale: float, size: list[float], yaw: float) -> Tensor:
+
+
+    
+    length_ratio = torch.tensor(size) / size[1]
+    scale = torch.tensor([scale, scale]) * length_ratio
+    
+    map = torch.exp((torch.square(grid_coords - center) /scale).sum(dim=-1) * (-1))
+
+    map_max = map.max()
+    map_min = map.min()
+    return (map - map_min)/ (map_max - map_min)
+
+
+
+def create_rotate_heatmap(grid_coords: Tensor, center: Tensor, scale: float, size: list[float], yaw: float) -> Tensor:
+    """Return a heatmap based on a Gaussian kernel with center `center` and scale `scale`.
+    Specifically, each pixel with coordinates (x, y) is assigned a heatmap value
+    using a Gaussian kernel centered on (cx, cy) with scale s:
+                e^(-((x - cx)^2 + (y - cy)^2) / s)
+    Subsequently, the heatmap is normalized such that its maximum value is 1.
+    Args:
+        grid_coords: An [H x W x 2] tensor containing the (x, y) coordinates of every
+            pixel in an [H x W] image. For example, for a [2 x 3] image, `grid_coords`
+            contains the elements (0, 0), (0, 1), (0, 2), ..., (1, 2).
+        center: A [2] tensor containing the (x, y) coordinate of the center.
+            This argument controls the kernel's center.
+        scale: A scalar value that controls the kernel's scale.
+    Returns:
+        An [H x W] heatmap tensor, normalized such that its peak is 1.
+    """
+    # TODO: Replace this stub code.
+
+    s = torch.sin(torch.tensor(yaw))
+    c = torch.cos(torch.tensor(yaw))
+    rot_matrix = torch.stack([torch.stack([c, -s]), torch.stack([s, c])])
+
+    rotated_coords = grid_coords.float() @ rot_matrix
+    rotated_center = center.float() @ rot_matrix
+    
+    length_ratio = torch.tensor(size) / size[1]
+    scale = torch.tensor([scale, scale]) * length_ratio
+    
+    map = torch.exp((torch.square(rotated_coords - rotated_center) /scale).sum(dim=-1) * (-1))
+
     map_max = map.max()
     map_min = map.min()
     return (map - map_min)/ (map_max - map_min)
@@ -104,23 +150,15 @@ class DetectionLossTargetBuilder:
         center = torch.tensor([cx, cy])
         scale = (x_size ** 2 + y_size ** 2) / self._heatmap_norm_scale
         
-        std_kernel = torch.Tensor([[1, 0], [0, 1]])
-        if self._kernel == 'iso':
-            kernel = std_kernel
-        elif self._kernel == 'aniso':
-            kernel = std_kernel
-            kernel[1][1] = y_size / x_size
-        elif self._kernel == 'rotate':
-            kernel = std_kernel
-            kernel[1][1] = y_size / x_size
-            c = math.cos(yaw)
-            s = math.sin(yaw)
-            rot_mat = torch.Tensor([[c, s], [-s, c]])
-            kernel = rot_mat.T @ kernel @ rot_mat
-            if kernel[0][0] != 0:
-                kernel = kernel / kernel[0][0]
 
-        heatmap = create_heatmap(grid_coords, center=center, scale=scale, kernel=kernel)  # [H x W]
+        if self._kernel == 'iso':
+            heatmap = create_iso_heatmap(grid_coords, center=center, scale=scale)
+        elif self._kernel == 'aniso':
+            heatmap = create_aniso_heatmap(grid_coords, center=center, scale=scale, size=[x_size, y_size], yaw=yaw)
+        elif self._kernel == 'rotate':
+            heatmap = create_rotate_heatmap(grid_coords, center=center, scale=scale, size=[x_size, y_size], yaw=yaw)
+
+        # heatmap = create_heatmap(grid_coords, center=center, scale=scale, kernel=kernel)  # [H x W]
 
         # 3. Create offset training targets.
         # Given the label's center (cx, cy), the target offset at pixel (i, j) equals
