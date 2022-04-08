@@ -1,3 +1,6 @@
+# Custom
+outputs
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -129,3 +132,7 @@ dmypy.json
 .pyre/
 
 dataset/
+
+# Tracking results
+tracking/tracking_results/
+
