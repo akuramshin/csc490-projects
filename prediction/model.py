@@ -30,10 +30,24 @@ class PredictionModel(nn.Module):
         super().__init__()
 
         # TODO: Implement
-        # self._encoder = FILL IN
+        self._encoder = self._build_network([10*2, 256, 128])
 
         # TODO: Implement
-        # self._decoder = FILL IN
+        self._decoder = self._build_network([128, 64, 2])
+
+
+    def _build_network(self, layer_size_list):
+        layers = []
+        for i in range(len(layer_size_list) - 1):
+            linear = nn.Linear(layer_size_list[i], layer_size_list[i + 1])
+
+            if i < len(layer_size_list) - 2:
+              activation = nn.ReLU()
+            else:
+              activation = nn.Identity()
+
+            layers += (linear, activation)
+        return nn.Sequential(*layers)
 
     @staticmethod
     def _preprocess(x_batches: List[Tensor]) -> Tuple[Tensor, Tensor, Tensor]:

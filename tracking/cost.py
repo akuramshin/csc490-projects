@@ -15,4 +15,30 @@ def iou_2d(bboxes1: np.ndarray, bboxes2: np.ndarray) -> np.ndarray:
     M, N = bboxes1.shape[0], bboxes2.shape[0]
     # TODO: Replace this stub code.
     iou_mat = np.zeros((M, N))
+
+    for i in range(M):
+        for j in range(N):
+            x, y, l, w, yaw = bboxes1[i]
+            alpha = np.pi/2 - yaw
+            dx = np.array([(l/2)*np.cos(yaw), (w/2)*np.cos(alpha)])
+            dy = np.array([(l/2)*np.sin(yaw), (w/2)*np.sin(alpha)])
+            points = [(x+([1,-1]*dx).sum(), y+dy.sum()), (x+dx.sum(), y+([1,-1]*dy).sum()), (x+([-1,1]*dx).sum(), y-dy.sum()), (x-dx.sum(), y+([-1,1]*dy).sum())]
+            b_1_i = Polygon(points)
+
+            x, y, l, w, yaw = bboxes2[j]
+            alpha = np.pi/2 - yaw
+            dx = np.array([(l/2)*np.cos(yaw), (w/2)*np.cos(alpha)])
+            dy = np.array([(l/2)*np.sin(yaw), (w/2)*np.sin(alpha)])
+            points = [(x+([1,-1]*dx).sum(), y+dy.sum()), (x+dx.sum(), y+([1,-1]*dy).sum()), (x+([-1,1]*dx).sum(), y-dy.sum()), (x-dx.sum(), y+([-1,1]*dy).sum())]
+
+            b_2_j = Polygon(points)
+
+            if b_1_i.union(b_2_j).area != 0:
+                iou = b_1_i.intersection(b_2_j).area / b_1_i.union(b_2_j).area
+            else:
+                iou = 0
+            
+            iou_mat[i, j] = iou
+
+
     return iou_mat

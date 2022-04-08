@@ -22,7 +22,12 @@ def compute_l1_loss(targets: Tensor, predictions: Tensor) -> Tensor:
         A scalar MAE loss between `predictions` and `targets`
     """
     # TODO: Implement.
-    # return l1_loss
+    mask = torch.any(targets.isnan(), dim=2)
+    targets_filtered = targets[~mask]
+    predictions_filtered = predictions[~mask]
+    
+    loss = nn.L1Loss()
+    return loss(predictions_filtered, targets_filtered)
 
 
 @dataclass
