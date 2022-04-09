@@ -19,19 +19,22 @@ def iou_2d(bboxes1: np.ndarray, bboxes2: np.ndarray) -> np.ndarray:
     for i in range(M):
         for j in range(N):
             x, y, l, w, yaw = bboxes1[i]
-            alpha = np.pi/2 - yaw
-            dx = np.array([(l/2)*np.cos(yaw), (w/2)*np.cos(alpha)])
-            dy = np.array([(l/2)*np.sin(yaw), (w/2)*np.sin(alpha)])
-            points = [(x+([1,-1]*dx).sum(), y+dy.sum()), (x+dx.sum(), y+([1,-1]*dy).sum()), (x+([-1,1]*dx).sum(), y-dy.sum()), (x-dx.sum(), y+([-1,1]*dy).sum())]
-            b_1_i = Polygon(points)
+            c, s = np.cos(yaw), np.sin(yaw)
+            rot_matrix = np.array(((c, -s), (s, c)))
+            points = np.array([[-l/2, w/2], [l/2, w/2], [l/2, -w/2], [-l/2, -w/2]])
+            points_rotated = points @ rot_matrix.T
+            points_rotated = points_rotated + [x, y]
+
+            b_1_i = Polygon(points_rotated)
 
             x, y, l, w, yaw = bboxes2[j]
-            alpha = np.pi/2 - yaw
-            dx = np.array([(l/2)*np.cos(yaw), (w/2)*np.cos(alpha)])
-            dy = np.array([(l/2)*np.sin(yaw), (w/2)*np.sin(alpha)])
-            points = [(x+([1,-1]*dx).sum(), y+dy.sum()), (x+dx.sum(), y+([1,-1]*dy).sum()), (x+([-1,1]*dx).sum(), y-dy.sum()), (x-dx.sum(), y+([-1,1]*dy).sum())]
+            c, s = np.cos(yaw), np.sin(yaw)
+            rot_matrix = np.array(((c, -s), (s, c)))
+            points = np.array([[-l/2, w/2], [l/2, w/2], [l/2, -w/2], [-l/2, -w/2]])
+            points_rotated = points @ rot_matrix.T
+            points_rotated = points_rotated + [x, y]
 
-            b_2_j = Polygon(points)
+            b_2_j = Polygon(points_rotated)
 
             if b_1_i.union(b_2_j).area != 0:
                 iou = b_1_i.intersection(b_2_j).area / b_1_i.union(b_2_j).area
