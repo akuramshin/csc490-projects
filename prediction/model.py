@@ -19,7 +19,7 @@ class PredictionModelConfig:
             l1_loss_weight=1.0,
         )
     )
-    num_history_timesteps: int = 10  # Number of timesteps in the history
+    num_history_timesteps: int = 20  # Number of timesteps in the history
     num_label_timesteps: int = 10  # Number of timesteps to predict
 
 
@@ -28,12 +28,15 @@ class PredictionModel(nn.Module):
 
     def __init__(self, config: PredictionModelConfig) -> None:
         super().__init__()
+        
+        W = config.num_history_timesteps
+        T = config.num_label_timesteps
 
         # TODO: Implement
-        self._encoder = self._build_network([10*2, 256, 128])
+        self._encoder = self._build_network([W*3, 256, 128])
 
         # TODO: Implement
-        self._decoder = self._build_network([128, 64, 2])
+        self._decoder = self._build_network([128, 256, T*2])
 
 
     def _build_network(self, layer_size_list):
