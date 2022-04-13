@@ -49,7 +49,7 @@ class PredictionLossConfig:
     """
 
     l1_loss_weight: float
-
+    nll_loss_weight: float
 
 @dataclass
 class PredictionLossMetadata:

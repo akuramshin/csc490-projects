@@ -67,6 +67,7 @@ class Trajectories:
             self.centroids.to(device),
             self.yaws.to(device),
             self.boxes.to(device),
+            self.sigmas.to(device),
         )
 
     def __len__(self) -> int:

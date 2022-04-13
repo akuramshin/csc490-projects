@@ -37,9 +37,10 @@ class PredictionModel(nn.Module):
         self._encoder = self._build_linear_network([W*3, 256, 128])
 
         # TODO: Implement
-        self._decoder = self._build_network([128, 256])
+        self._decoder = self._build_linear_network([128, 256])
         self._head_mu = nn.Linear(256, T*2)
         self._head_sigma = nn.Linear(256, T*2)
+        self.ReLU = nn.ReLU()
 
 
     def _build_linear_network(self, layer_size_list):
@@ -141,8 +142,8 @@ class PredictionModel(nn.Module):
         """
         x, batch_ids, original_x_pose = self._preprocess(x_batches)
         out = self._decoder(self._encoder(x))
-        mu = self._head_mu(out)
-        sigma = self._head_sigma(out)
+        mu = self._head_mu(self.ReLU(out))
+        sigma = self.ReLU(self._head_sigma(self.ReLU(out)))
 
         mu_batches = self._postprocess(mu, batch_ids, original_x_pose)
         num_actors = len(batch_ids)
@@ -162,7 +163,8 @@ class PredictionModel(nn.Module):
             A set of 2D future trajectory centroid predictions.
         """
         self.eval()
-        pred_mu, pred_sigma = self.forward([history])[0]  # shape: B * N x T x 2
+        pred = self.forward([history])
+        pred_mu, pred_sigma = pred[0][0], pred[1][0]  # shape: B * N x T x 2
         num_timesteps, num_coords = pred_mu.shape[-2:]
 
         # Add dummy values for yaws and boxes here because we will fill them in from the ground truth

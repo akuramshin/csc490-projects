@@ -67,7 +67,7 @@ def plot_box(
             x,
             y,
             np.cos(yaw) * length / 2,
-            np.sin(yaw) * length / 2,label
+            np.sin(yaw) * length / 2,
             edgecolor=color,
             facecolor=color,
             capstyle="projecting",
