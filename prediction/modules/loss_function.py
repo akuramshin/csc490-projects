@@ -22,7 +22,22 @@ def compute_l1_loss(targets: Tensor, predictions: Tensor) -> Tensor:
         A scalar MAE loss between `predictions` and `targets`
     """
     # TODO: Implement.
-    # return l1_loss
+    mask = torch.any(targets.isnan(), dim=2)
+    targets_filtered = targets[~mask]
+    predictions_filtered = predictions[~mask]
+    
+    loss = nn.L1Loss()
+    return loss(predictions_filtered, targets_filtered)
+
+def compute_nll_loss(targets, predicted_means, predicted_covariances):
+    mask = torch.any(targets.isnan(), dim=2)
+    targets_filtered = targets[~mask]
+    predicted_means_filtered = predicted_means[~mask]
+    predicted_covariances_filtered = predicted_covariances[~mask]
+
+    loss = nn.GaussianNLLLoss()
+    return loss(predicted_means_filtered, targets_filtered, predicted_covariances_filtered)
+
 
 
 @dataclass
@@ -50,9 +65,10 @@ class PredictionLossFunction(torch.nn.Module):
     def __init__(self, config: PredictionLossConfig) -> None:
         super(PredictionLossFunction, self).__init__()
         self._l1_loss_weight = config.l1_loss_weight
+        self._nll_loss_weight = config.nll_loss_weight
 
     def forward(
-        self, predictions: List[Tensor], targets: List[Tensor]
+        self, predictions: Tuple[List[Tensor], List[Tensor]], targets: List[Tensor]
     ) -> Tuple[torch.Tensor, PredictionLossMetadata]:
         """Compute the loss between the predicted Predictions and target labels.
 
@@ -64,22 +80,28 @@ class PredictionLossFunction(torch.nn.Module):
         Returns:
             The scalar tensor containing the weighted loss between `predictions` and `targets`.
         """
-        predictions_tensor = torch.cat(predictions)
+        mu_predictions_tensor, sigma_predictions_tensor = torch.cat(predictions[0]), torch.cat(predictions[1])
         targets_tensor = torch.cat(targets)
 
         # 1. Unpack the targets tensor.
         target_centroids = targets_tensor[..., :2]  # [batch_size * num_actors x T x 2]
 
         # 2. Unpack the predictions tensor.
-        predicted_centroids = predictions_tensor[
+        predicted_means = mu_predictions_tensor[
+            ..., :2
+        ]  # [batch_size * num_actors x T x 2]
+
+        predicted_covariances = sigma_predictions_tensor[
             ..., :2
         ]  # [batch_size * num_actors x T x 2]
 
         # 3. Compute individual loss terms for l1
-        l1_loss = compute_l1_loss(target_centroids, predicted_centroids)
+        #l1_loss = compute_l1_loss(target_centroids, predicted_centroids)
+        nll_loss = compute_nll_loss(target_centroids, predicted_means, predicted_covariances)
 
         # 4. Aggregate losses using the configured weights.
-        total_loss = l1_loss * self._l1_loss_weight
+        #total_loss = l1_loss * self._l1_loss_weight
+        total_loss = nll_loss * self._nll_loss_weight
 
-        loss_metadata = PredictionLossMetadata(total_loss, l1_loss)
+        loss_metadata = PredictionLossMetadata(total_loss, nll_loss)
         return total_loss, loss_metadata

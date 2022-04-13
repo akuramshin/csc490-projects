@@ -17,9 +17,10 @@ class PredictionModelConfig:
     loss: PredictionLossConfig = field(
         default_factory=lambda: PredictionLossConfig(
             l1_loss_weight=1.0,
+            nll_loss_weight=1.0
         )
     )
-    num_history_timesteps: int = 10  # Number of timesteps in the history
+    num_history_timesteps: int = 20  # Number of timesteps in the history
     num_label_timesteps: int = 10  # Number of timesteps to predict
 
 
@@ -28,12 +29,31 @@ class PredictionModel(nn.Module):
 
     def __init__(self, config: PredictionModelConfig) -> None:
         super().__init__()
+        
+        W = config.num_history_timesteps
+        T = config.num_label_timesteps
 
         # TODO: Implement
-        # self._encoder = FILL IN
+        self._encoder = self._build_linear_network([W*3, 256, 128])
 
         # TODO: Implement
-        # self._decoder = FILL IN
+        self._decoder = self._build_network([128, 256])
+        self._head_mu = nn.Linear(256, T*2)
+        self._head_sigma = nn.Linear(256, T*2)
+
+
+    def _build_linear_network(self, layer_size_list):
+        layers = []
+        for i in range(len(layer_size_list) - 1):
+            linear = nn.Linear(layer_size_list[i], layer_size_list[i + 1])
+
+            if i < len(layer_size_list) - 2:
+              activation = nn.ReLU()
+            else:
+              activation = nn.Identity()
+
+            layers += (linear, activation)
+        return nn.Sequential(*layers)
 
     @staticmethod
     def _preprocess(x_batches: List[Tensor]) -> Tuple[Tensor, Tensor, Tensor]:
@@ -121,8 +141,14 @@ class PredictionModel(nn.Module):
         """
         x, batch_ids, original_x_pose = self._preprocess(x_batches)
         out = self._decoder(self._encoder(x))
-        out_batches = self._postprocess(out, batch_ids, original_x_pose)
-        return out_batches
+        mu = self._head_mu(out)
+        sigma = self._head_sigma(out)
+
+        mu_batches = self._postprocess(mu, batch_ids, original_x_pose)
+        num_actors = len(batch_ids)
+        sigma_batches = unflatten_batch(sigma.reshape(num_actors, -1, 2), batch_ids)
+
+        return mu_batches, sigma_batches
 
     @torch.no_grad()
     def inference(self, history: Tensor) -> Trajectories:
@@ -136,12 +162,13 @@ class PredictionModel(nn.Module):
             A set of 2D future trajectory centroid predictions.
         """
         self.eval()
-        pred = self.forward([history])[0]  # shape: B * N x T x 2
-        num_timesteps, num_coords = pred.shape[-2:]
+        pred_mu, pred_sigma = self.forward([history])[0]  # shape: B * N x T x 2
+        num_timesteps, num_coords = pred_mu.shape[-2:]
 
         # Add dummy values for yaws and boxes here because we will fill them in from the ground truth
         return Trajectories(
-            pred,
-            torch.zeros(pred.shape[0], num_timesteps),
-            torch.ones(pred.shape[0], num_coords),
+            pred_mu,
+            torch.zeros(pred_mu.shape[0], num_timesteps),
+            torch.ones(pred_mu.shape[0], num_coords),
+            pred_sigma
         )

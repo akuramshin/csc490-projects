@@ -11,11 +11,13 @@ class Trajectories:
         centroids: [N x T x 2] centroids tensor. Each row is (x, y).
         yaws: [N x T] rotations in radians tensor.
         boxes: [N x 2] boxes tensor. Each row is (x_size, y_size).
+        sigmas: [N X T X 2] covariance matricies. Each row is (delta_xx, delta_xy, delta_yx, delta_yy).
     """
 
     centroids: torch.Tensor
     yaws: torch.Tensor
     boxes: torch.Tensor
+    sigmas: torch.Tensor
 
     @property
     def centroids_x(self) -> torch.Tensor:
@@ -26,6 +28,16 @@ class Trajectories:
     def centroids_y(self) -> torch.Tensor:
         """Return the y-axis centroid coordinates."""
         return self.centroids[:, :, 1]
+
+    @property
+    def variance_x(self) -> torch.Tensor:
+        """Return the x-axis variance"""
+        return self.sigmas[:, :, 0]
+
+    @property
+    def variance_y(self) -> torch.Tensor:
+        """Return the y-axis variance"""
+        return self.sigmas[:, :, 1]
 
     @property
     def boxes_x(self) -> torch.Tensor:

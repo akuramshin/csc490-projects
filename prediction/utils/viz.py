@@ -2,13 +2,14 @@ from turtle import color
 from typing import Tuple
 
 import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.colorbar import ColorbarBase
 from matplotlib.colors import LinearSegmentedColormap, Normalize
 from matplotlib.figure import Figure
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
-from detection.utils.visualization import plot_box
+from detection.utils.visualization import plot_box, plot_ellipse
 from prediction.types import Trajectories
 
 
@@ -36,6 +37,8 @@ def visualize_trajectories(
     yaws = trajectories.yaws
     boxes_x = trajectories.boxes_x
     boxes_y = trajectories.boxes_y
+    variance_x = trajectories.variance_x
+    variance_y = trajectories.variance_y
 
     colors = []
     for ix in range(centroids_x.shape[0]):
@@ -47,16 +50,27 @@ def visualize_trajectories(
                 start_color[2] * (1 - ratio) + end_color[2] * ratio,
                 0.3,
             )
-            plot_box(
+            # plot_box(
+            #     ax,
+            #     centroids_x[ix, t].item(),
+            #     centroids_y[ix, t].item(),
+            #     yaws[ix, t].item(),
+            #     boxes_x[ix, t].item(),
+            #     boxes_y[ix, t].item(),
+            #     new_color,
+            #     name,
+            # )
+            plot_ellipse(    
                 ax,
                 centroids_x[ix, t].item(),
                 centroids_y[ix, t].item(),
                 yaws[ix, t].item(),
-                boxes_x[ix, t].item(),
-                boxes_y[ix, t].item(),
+                variance_x[ix, t].item(),
+                variance_y[ix, t].item(),
                 new_color,
                 name,
             )
+
             colors.append(new_color)
 
     axins1 = inset_axes(ax, width="10%", height="4%", loc="upper left")
