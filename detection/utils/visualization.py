@@ -5,9 +5,32 @@ import numpy as np
 import torch
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
-from matplotlib.patches import Arrow, Rectangle
+from matplotlib.patches import Arrow, Rectangle, Ellipse
 
 from detection.types import Detections
+
+
+def plot_ellipse(    
+    ax: Axes,
+    x: float,
+    y: float,
+    yaw: float,
+    var_x: float,
+    var_y: float,
+    color: Any,
+    label: str,
+) -> None:
+
+    ax.add_patch(
+        Ellipse(
+            (x, y),
+            var_x,
+            var_y,
+            np.rad2deg(yaw),
+            facecolor=color,
+            label=label,
+        )
+    )
 
 
 def plot_box(
@@ -44,7 +67,7 @@ def plot_box(
             x,
             y,
             np.cos(yaw) * length / 2,
-            np.sin(yaw) * length / 2,
+            np.sin(yaw) * length / 2,label
             edgecolor=color,
             facecolor=color,
             capstyle="projecting",
