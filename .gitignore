@@ -1,3 +1,6 @@
+# Custom
+outputs
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -132,3 +135,5 @@ dataset/
 output/
 tmp/
 *.sh
+tracking/tracking_results/
+
