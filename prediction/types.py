@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 import torch
+import numpy as np
 
 
 @dataclass
@@ -30,14 +31,9 @@ class Trajectories:
         return self.centroids[:, :, 1]
 
     @property
-    def variance_x(self) -> torch.Tensor:
-        """Return the x-axis variance"""
-        return self.sigmas[:, :, 0]
-
-    @property
-    def variance_y(self) -> torch.Tensor:
-        """Return the y-axis variance"""
-        return self.sigmas[:, :, 1]
+    def variance_matrix(self) -> np.ndarray:
+        """Return the variance matrix as numpy ndarray"""
+        return self.sigmas.cpu().detach().numpy()
 
     @property
     def boxes_x(self) -> torch.Tensor:
