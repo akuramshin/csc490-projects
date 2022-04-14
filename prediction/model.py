@@ -39,7 +39,7 @@ class PredictionModel(nn.Module):
         # TODO: Implement
         self._decoder = self._build_linear_network([128, 256])
         self._head_mu = nn.Linear(256, T*2)
-        self._head_sigma = nn.Linear(256, T*2)
+        self._head_sigma = nn.Linear(256, T*4)
         self.ReLU = nn.ReLU()
 
 
@@ -147,7 +147,7 @@ class PredictionModel(nn.Module):
 
         mu_batches = self._postprocess(mu, batch_ids, original_x_pose)
         num_actors = len(batch_ids)
-        sigma_batches = unflatten_batch(sigma.reshape(num_actors, -1, 2), batch_ids)
+        sigma_batches = unflatten_batch(sigma.reshape(num_actors, -1, 4), batch_ids)
 
         return mu_batches, sigma_batches
 
