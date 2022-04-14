@@ -20,6 +20,7 @@ def visualize_trajectories(
     name: str,
     fig: Figure,
     ax: Axes,
+    ground_truth: bool,
 ) -> Tuple[Figure, Axes]:
     """Plots a frame of detections and ground truth labels.
 
@@ -50,26 +51,28 @@ def visualize_trajectories(
                 start_color[2] * (1 - ratio) + end_color[2] * ratio,
                 0.3,
             )
-            # plot_box(
-            #     ax,
-            #     centroids_x[ix, t].item(),
-            #     centroids_y[ix, t].item(),
-            #     yaws[ix, t].item(),
-            #     boxes_x[ix, t].item(),
-            #     boxes_y[ix, t].item(),
-            #     new_color,
-            #     name,
-            # )
-            plot_ellipse(    
-                ax,
-                centroids_x[ix, t].item(),
-                centroids_y[ix, t].item(),
-                yaws[ix, t].item(),
-                variance_x[ix, t].item(),
-                variance_y[ix, t].item(),
-                new_color,
-                name,
-            )
+            if ground_truth:
+                plot_box(
+                    ax,
+                    centroids_x[ix, t].item(),
+                    centroids_y[ix, t].item(),
+                    yaws[ix, t].item(),
+                    boxes_x[ix, t].item(),
+                    boxes_y[ix, t].item(),
+                    new_color,
+                    name,
+                )
+            else:
+                plot_ellipse(    
+                    ax,
+                    centroids_x[ix, t].item(),
+                    centroids_y[ix, t].item(),
+                    yaws[ix, t].item(),
+                    variance_x[ix, t].item(),
+                    variance_y[ix, t].item(),
+                    new_color,
+                    name,
+                )
 
             colors.append(new_color)
 
@@ -102,6 +105,7 @@ def vis_pred_labels(
         "Predictions Time",
         fig,
         ax1,
+        False,
     )
     visualize_trajectories(
         label_trajectories,
@@ -110,6 +114,7 @@ def vis_pred_labels(
         "Labels Time",
         fig,
         ax2,
+        True,
     )
 
     ax1.set_xlim(

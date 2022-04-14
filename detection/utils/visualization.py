@@ -24,8 +24,8 @@ def plot_ellipse(
     ax.add_patch(
         Ellipse(
             (x, y),
-            var_x,
-            var_y,
+            np.sqrt(var_x),
+            np.sqrt(var_y),
             np.rad2deg(yaw),
             facecolor=color,
             label=label,
