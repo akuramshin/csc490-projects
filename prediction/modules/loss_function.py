@@ -34,9 +34,12 @@ def compute_nll_loss(targets, predicted_means, predicted_covariances):
     targets_filtered = targets[~mask]
     predicted_means_filtered = predicted_means[~mask]
     predicted_covariances_filtered = predicted_covariances[~mask]
+    
+    covariance_matrices = predicted_covariances_filtered.reshape(-1, 2, 2) # [batch_size * num_actors x T x 2 x 2]
+    mean_error = (targets_filtered - predicted_means_filtered).reshape(-1, 2, 1)
+    loss = (1/2)*torch.logdet(predicted_covariances_filtered) + (1/2)*torch.bmm(mean_error.T, torch.bmm(covariance_matrices.inv, mean_error))
 
-    loss = nn.GaussianNLLLoss()
-    return loss(predicted_means_filtered, targets_filtered, predicted_covariances_filtered)
+    return loss.sum()
 
 
 
