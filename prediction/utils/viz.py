@@ -66,7 +66,7 @@ def visualize_trajectories(
                     ax,
                     centroids_x[ix, t].item(),
                     centroids_y[ix, t].item(),
-                    covariance_matrix[ix, t].item(),
+                    covariance_matrix[ix, t],
                     new_color,
                     name,
                 )

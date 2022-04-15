@@ -20,7 +20,8 @@ def plot_ellipse(
     label: str,
 ) -> None:
 
-    n_std = 1.
+    n_std = 2.
+    cov_matrix = cov_matrix.cpu().detach().numpy()
     pearson = cov_matrix[0, 1]/np.sqrt(cov_matrix[0, 0] * cov_matrix[1, 1])
     # Using a special case to obtain the eigenvalues of this
     # two-dimensionl dataset.
@@ -33,20 +34,26 @@ def plot_ellipse(
     # the squareroot of the variance and multiplying
     # with the given number of standard deviations.
     scale_x = np.sqrt(cov_matrix[0, 0]) * n_std
-    mean_x = np.mean(x)
 
     # calculating the stdandard deviation of y ...
     scale_y = np.sqrt(cov_matrix[1, 1]) * n_std
-    mean_y = np.mean(y)
 
     transf = transforms.Affine2D() \
         .rotate_deg(45) \
         .scale(scale_x, scale_y) \
-        .translate(mean_x, mean_y)
+        .translate(x, y)
 
     ellipse.set_transform(transf + ax.transData)
-
     ax.add_patch(ellipse)
+    #ax.add_patch(
+    #    Ellipse(
+    #        (x, y),
+    #        np.sqrt(cov_matrix[0,0])*2,
+    #        np.sqrt(cov_matrix[1,1])*2,
+    #        facecolor=color,
+    #        label=label,
+    #    )
+    #)
 
 
 def plot_box(

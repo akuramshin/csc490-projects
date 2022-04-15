@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 
 import torch
-import numpy as np
 
 
 @dataclass
@@ -12,7 +11,7 @@ class Trajectories:
         centroids: [N x T x 2] centroids tensor. Each row is (x, y).
         yaws: [N x T] rotations in radians tensor.
         boxes: [N x 2] boxes tensor. Each row is (x_size, y_size).
-        sigmas: [N X T X 2] covariance matricies. Each row is (delta_xx, delta_xy, delta_yx, delta_yy).
+        sigmas: [N X T X 2 x 2] covariance matricies. Each row is (delta_xx, delta_xy, delta_yx, delta_yy).
     """
 
     centroids: torch.Tensor
@@ -31,9 +30,9 @@ class Trajectories:
         return self.centroids[:, :, 1]
 
     @property
-    def variance_matrix(self) -> np.ndarray:
+    def variance_matrix(self) -> torch.Tensor:
         """Return the variance matrix as numpy ndarray"""
-        return self.sigmas.cpu().detach().numpy()
+        return self.sigmas
 
     @property
     def boxes_x(self) -> torch.Tensor:

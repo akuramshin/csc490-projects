@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import List, Tuple
 
 import torch
+from torch.distributions import MultivariateNormal
 from torch import Tensor, nn
 
 
@@ -29,17 +30,20 @@ def compute_l1_loss(targets: Tensor, predictions: Tensor) -> Tensor:
     loss = nn.L1Loss()
     return loss(predictions_filtered, targets_filtered)
 
-def compute_nll_loss(targets, predicted_means, predicted_covariances):
+def compute_nll_loss(targets, predicted_means, predicted_cov):
     mask = torch.any(targets.isnan(), dim=2)
     targets_filtered = targets[~mask]
     predicted_means_filtered = predicted_means[~mask]
-    predicted_covariances_filtered = predicted_covariances[~mask]
-    
-    covariance_matrices = predicted_covariances_filtered.reshape(-1, 2, 2) # [batch_size * num_actors x T x 2 x 2]
-    mean_error = (targets_filtered - predicted_means_filtered).reshape(-1, 2, 1)
-    loss = (1/2)*torch.logdet(predicted_covariances_filtered) + (1/2)*torch.bmm(mean_error.T, torch.bmm(covariance_matrices.inv, mean_error))
+    predicted_cov_filtered = predicted_cov[~mask]
 
-    return loss.sum()
+    #mean_error = (targets_filtered - predicted_means_filtered).reshape(-1, 2, 1)
+    #loss = (1/2)*torch.logdet(covariance_matrices)
+    #loss_2 = (1/2)*torch.bmm(mean_error.transpose(2, 1), torch.bmm(torch.inverse(covariance_matrices), mean_error))
+    #loss = loss + loss_2.squeeze()
+    dist = MultivariateNormal(predicted_means_filtered, scale_tril=predicted_cov_filtered)
+
+    loss = - dist.log_prob(targets_filtered).mean()
+    return loss
 
 
 
@@ -95,8 +99,8 @@ class PredictionLossFunction(torch.nn.Module):
         ]  # [batch_size * num_actors x T x 2]
 
         predicted_covariances = sigma_predictions_tensor[
-            ..., :2
-        ]  # [batch_size * num_actors x T x 2]
+            ..., :4
+        ]  # [batch_size * num_actors x T x 4]
 
         # 3. Compute individual loss terms for l1
         #l1_loss = compute_l1_loss(target_centroids, predicted_centroids)

@@ -39,8 +39,9 @@ class PredictionModel(nn.Module):
         # TODO: Implement
         self._decoder = self._build_linear_network([128, 256])
         self._head_mu = nn.Linear(256, T*2)
-        self._head_sigma = nn.Linear(256, T*4)
+        self._head_sigma = nn.Linear(256, T*3)
         self.ReLU = nn.ReLU()
+        self.ELU = nn.ELU(alpha=0.9)
 
 
     def _build_linear_network(self, layer_size_list):
@@ -143,13 +144,23 @@ class PredictionModel(nn.Module):
         x, batch_ids, original_x_pose = self._preprocess(x_batches)
         out = self._decoder(self._encoder(x))
         mu = self._head_mu(self.ReLU(out))
-        sigma = self.ReLU(self._head_sigma(self.ReLU(out)))
+        sigma = self._head_sigma(self.ReLU(out))
 
         mu_batches = self._postprocess(mu, batch_ids, original_x_pose)
         num_actors = len(batch_ids)
-        sigma_batches = unflatten_batch(sigma.reshape(num_actors, -1, 4), batch_ids)
+        sigma = sigma.reshape(num_actors, -1, 3)
 
-        return mu_batches, sigma_batches
+        diag, tril = sigma.split(2, dim=-1)
+        diag = 1 + self.ReLU(diag)
+        z = torch.zeros(size=[*diag.shape[:-1]], device='cuda')
+        scale_tril = torch.stack([
+            diag[..., 0], z,
+            tril.squeeze(), diag[..., 1]
+        ], dim=-1).view(*diag.shape[:-1], 2, 2)
+
+        cov_batches = unflatten_batch(scale_tril, batch_ids)
+
+        return mu_batches, cov_batches
 
     @torch.no_grad()
     def inference(self, history: Tensor) -> Trajectories:
@@ -164,7 +175,7 @@ class PredictionModel(nn.Module):
         """
         self.eval()
         pred = self.forward([history])
-        pred_mu, pred_sigma = pred[0][0], pred[1][0]  # shape: B * N x T x 2
+        pred_mu, pred_cov = pred[0][0], pred[1][0]  # shape: B * N x T x 2
         num_timesteps, num_coords = pred_mu.shape[-2:]
 
         # Add dummy values for yaws and boxes here because we will fill them in from the ground truth
@@ -172,5 +183,5 @@ class PredictionModel(nn.Module):
             pred_mu,
             torch.zeros(pred_mu.shape[0], num_timesteps),
             torch.ones(pred_mu.shape[0], num_coords),
-            pred_sigma
+            pred_cov
         )
