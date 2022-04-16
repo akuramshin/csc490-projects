@@ -4,6 +4,8 @@ import numpy as np
 from scipy.optimize import linear_sum_assignment
 
 
+
+
 def greedy_matching(cost_matrix: np.ndarray) -> Tuple[List, List]:
     """Perform matching based on the greedy matching algorithm.
 
@@ -17,26 +19,25 @@ def greedy_matching(cost_matrix: np.ndarray) -> Tuple[List, List]:
         assignment corresponds to costs[0, 3], costs[1, 1] and costs[2, 0].
     """
     # TODO: Replace this stub code.
+    
     row_ids, col_ids = [], []
     M, N = cost_matrix.shape
+    
+    cost_matrix_copy = cost_matrix.copy()
+    # np.inf can't be converted to int, so use this way to substitute 
+    over_max = np.max(cost_matrix_copy) + 1
+    
+    
+    iter_num = min(N, M)
+    for i in range(iter_num):
+        min_row_ix, min_col_ix = np.unravel_index(np.argmin(cost_matrix_copy, axis=None), cost_matrix_copy.shape)
+        row_ids.append(min_row_ix)
+        col_ids.append(min_col_ix)
+        cost_matrix_copy[min_row_ix,:] =over_max
+        cost_matrix_copy[:, min_col_ix] =over_max
+    # ( List[int], List[int] )
+    return (row_ids, col_ids)
 
-    S_1 = [i for i in range(0, M)]
-    S_2 = [i for i in range(0, N)]
-
-    while len(S_1) > 0 and len(S_2) > 0:
-        min = np.Inf
-        min_idx = -1
-        for i in S_1:
-            curr_min = np.min(cost_matrix[i, S_2])
-            if  curr_min < min:
-                min = curr_min
-                min_idx = (i, S_2[np.where(cost_matrix[i,S_2] == curr_min)[0][0]])
-
-        row_ids.append(min_idx[0])
-        col_ids.append(min_idx[1])
-        S_1.remove(min_idx[0])
-        S_2.remove(min_idx[1])
-    return row_ids, col_ids
 
 
 def hungarian_matching(cost_matrix: np.ndarray) -> Tuple[List, List]:
