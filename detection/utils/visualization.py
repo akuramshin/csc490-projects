@@ -15,13 +15,14 @@ def plot_ellipse(
     ax: Axes,
     x: float,
     y: float,
-    cov_matrix: np.ndarray,
+    scale_tril: torch.Tensor,
     color: Any,
     label: str,
 ) -> None:
 
-    n_std = 2.
-    cov_matrix = cov_matrix.cpu().detach().numpy()
+    n_std = 1.
+    scale_tril = scale_tril.cpu().detach().numpy()
+    cov_matrix = scale_tril.T @ scale_tril
     pearson = cov_matrix[0, 1]/np.sqrt(cov_matrix[0, 0] * cov_matrix[1, 1])
     # Using a special case to obtain the eigenvalues of this
     # two-dimensionl dataset.
