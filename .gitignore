@@ -133,6 +133,9 @@ dmypy.json
 
 dataset/
 
-# Tracking results
+output/
+tmp/
+*.sh
+
 tracking/tracking_results/
 

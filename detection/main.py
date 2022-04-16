@@ -21,6 +21,7 @@ def overfit(
     num_iterations: int = 500,
     log_frequency: int = 100,
     learning_rate: float = 1e-4,
+    loss_func: str = 'mse',
 ) -> None:
     """Overfit detector to one frame of the Pandaset dataset.
 
@@ -43,6 +44,7 @@ def overfit(
 
     # setup model
     model_config = DetectionModelConfig()
+    model_config.loss.loss_func = loss_func
     model = DetectionModel(model_config).to(device)
 
     # setup data
@@ -106,6 +108,7 @@ def train(
     log_frequency: int = 100,
     learning_rate: float = 1e-4,
     checkpoint_path: Optional[str] = None,
+    loss_func: str = 'mse',
 ) -> None:
     """Train detector on the Pandaset dataset.
 
@@ -131,6 +134,7 @@ def train(
 
     # setup model
     model_config = DetectionModelConfig()
+    model_config.loss.loss_func = loss_func
     model = DetectionModel(model_config)
     if checkpoint_path is not None:
         model.load_state_dict(torch.load(checkpoint_path, map_location="cpu"))
@@ -200,6 +204,7 @@ def test(
     seed: int = 42,
     num_workers: int = 5,
     checkpoint_path: Optional[str] = None,
+    loss_func: str = 'mse',
 ) -> None:
     """Visualize the outputs of the detector on Pandaset.
 
@@ -221,6 +226,7 @@ def test(
 
     # setup model
     model_config = DetectionModelConfig()
+    model_config.loss.loss_func = loss_func
     model = DetectionModel(model_config)
     if checkpoint_path is not None:
         model.load_state_dict(torch.load(checkpoint_path, map_location="cpu"))
@@ -248,6 +254,7 @@ def evaluate(
     seed: int = 42,
     num_workers: int = 4,
     checkpoint_path: Optional[str] = None,
+    loss_func: str = 'mse',
 ) -> None:
     """Evaluate the detector on Pandaset and save its metrics.
 
@@ -269,6 +276,7 @@ def evaluate(
 
     # setup model
     model_config = DetectionModelConfig()
+    # model_config.loss.loss_func = loss_func
     model = DetectionModel(model_config)
     if checkpoint_path is not None:
         model.load_state_dict(torch.load(checkpoint_path, map_location="cpu"))

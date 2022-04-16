@@ -31,12 +31,11 @@ def greedy_matching(cost_matrix: np.ndarray) -> Tuple[List, List]:
             if  curr_min < min:
                 min = curr_min
                 min_idx = (i, S_2[np.where(cost_matrix[i,S_2] == curr_min)[0][0]])
-        
+
         row_ids.append(min_idx[0])
         col_ids.append(min_idx[1])
         S_1.remove(min_idx[0])
         S_2.remove(min_idx[1])
-
     return row_ids, col_ids
 
 

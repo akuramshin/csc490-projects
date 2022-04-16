@@ -80,6 +80,7 @@ class PandasetPredDataset:
             centroids=torch.empty(num_actors, num_timesteps, 2) * float("nan"),
             yaws=torch.empty(num_actors, num_timesteps) * float("nan"),
             boxes=torch.empty(num_actors, 2) * float("nan"),
+            sigmas=torch.ones(num_actors, num_timesteps, 4),
         )
 
         for timestep, frame_labels in enumerate(pred_labels):

@@ -1,5 +1,6 @@
 import math
 from typing import Tuple
+from matplotlib.pyplot import grid
 
 import torch
 from torch import Tensor
@@ -8,7 +9,7 @@ from detection.modules.loss_function import DetectionLossConfig
 from detection.types import Detections
 
 
-def create_heatmap(grid_coords: Tensor, center: Tensor, scale: float) -> Tensor:
+def create_heatmap(grid_coords: Tensor, center: Tensor, scale: float, size: list[float], yaw: float) -> Tensor:
     """Return a heatmap based on a Gaussian kernel with center `center` and scale `scale`.
 
     Specifically, each pixel with coordinates (x, y) is assigned a heatmap value
@@ -30,8 +31,19 @@ def create_heatmap(grid_coords: Tensor, center: Tensor, scale: float) -> Tensor:
         An [H x W] heatmap tensor, normalized such that its peak is 1.
     """
     # TODO: Replace this stub code.
+
+    s = torch.sin(torch.tensor(yaw))
+    c = torch.cos(torch.tensor(yaw))
+    rot_matrix = torch.stack([torch.stack([c, -s]), torch.stack([s, c])])
+
+    rotated_coords = grid_coords.float() @ rot_matrix
+    rotated_center = center.float() @ rot_matrix
     
-    map = torch.exp(torch.square(grid_coords - center).sum(dim=-1) / scale * (-1))
+    length_ratio = torch.tensor(size) / size[1]
+    scale = torch.tensor([scale, scale]) * length_ratio
+    
+    map = torch.exp((torch.square(rotated_coords - rotated_center) /scale).sum(dim=-1) * (-1))
+
     map_max = map.max()
     map_min = map.min()
     return (map - map_min)/ (map_max - map_min)
@@ -99,7 +111,7 @@ class DetectionLossTargetBuilder:
         # 2. Create heatmap training targets by invoking the `create_heatmap` function.
         center = torch.tensor([cx, cy])
         scale = (x_size ** 2 + y_size ** 2) / self._heatmap_norm_scale
-        heatmap = create_heatmap(grid_coords, center=center, scale=scale)  # [H x W]
+        heatmap = create_heatmap(grid_coords, center=center, scale=scale, size=[x_size, y_size], yaw=yaw)  # [H x W]
 
         # 3. Create offset training targets.
         # Given the label's center (cx, cy), the target offset at pixel (i, j) equals

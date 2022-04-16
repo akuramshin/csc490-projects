@@ -1,5 +1,6 @@
 from turtle import pos
 from dataclasses import dataclass
+from nis import match
 from typing import List
 
 import torch
@@ -63,7 +64,6 @@ def compute_precision_recall_curve(
         A precision/recall curve.
     """
     # TODO: Replace this stub code.
-
     TP = torch.zeros(0)
     FN = torch.zeros(0)
     DS = torch.zeros(0)
@@ -110,6 +110,64 @@ def compute_precision_recall_curve(
     return PRCurve(precision, recall)
 
 
+    all_detections_binary = torch.tensor([])
+    labels_count = 0
+    all_scores = torch.tensor([])
+    for _, frame in enumerate(frames):
+        batch_detections = frame.detections.centroids
+        batch_labels = frame.labels.centroids
+        batch_scores = frame.detections.scores
+        d = batch_detections.shape[0]
+        l = batch_labels.shape[0]
+        labels_count += l
+
+        # in binary array, 0 means unmatched and 1 means matched
+        detections_match_binary = torch.zeros(d)
+        labels_match_binary = torch.zeros(l)
+        
+        # in each frame, sort dectections with scores (high score ~ low score)
+        sorted_scores, indices = torch.sort(batch_scores, descending=True)
+        sorted_detections = batch_detections[indices, :]
+
+        # distance_table[j][i] =  i-th detection ~ j-th label
+        distance_table = (sorted_detections.reshape(1, d, 2) - batch_labels.reshape(l, 1, 2)).norm(dim=-1)
+
+        # in distance_table, if distance > threshold, then set the entry as 0
+        mask = distance_table <= threshold
+        distance_table[~mask] = -1
+        
+        # find a label for i-th detection. If the label is found, mark 1 in the corresponding indexes in <detections_match_binary> and <labels_match_binary>
+        # loop from detections with high scores to low
+        for i in range(d):
+            distances = distance_table[:, i].reshape(l)
+            # If the label is matched, then set the element in distance array as 0
+            labels_binary_mask = (labels_match_binary > 0)
+            distances[labels_binary_mask] = -1
+            # indexs of available labels
+            positive_distances_indices = (distances >= 0).nonzero().flatten()
+            # sorted indexs of available labels, from smallest distance to largest
+            _, labels_indices = distances[positive_distances_indices].sort()
+            if len(labels_indices):
+                first_available_labels_ix = labels_indices[0]
+                labels_match_binary[first_available_labels_ix] = 1
+                detections_match_binary[i] = 1
+        
+        all_scores = torch.cat((all_scores, sorted_scores), dim=0)
+        all_detections_binary = torch.cat((all_detections_binary, detections_match_binary), dim=0)
+
+    detections_count = len(all_detections_binary)
+    
+    # sort detections with corresponding scores
+    _, indices = all_scores.sort(descending=True)
+    sorted_detections_binary = all_detections_binary[indices]
+    
+    # calculate precision and recall
+    TP = sorted_detections_binary.cumsum(dim=0)
+    precision = TP / torch.arange(1, detections_count + 1)
+    recall = TP / labels_count
+
+    return PRCurve(precision, recall)
+
 def compute_area_under_curve(curve: PRCurve) -> float:
     """Return the area under the given curve.
 
@@ -151,4 +209,8 @@ def compute_average_precision(
     curve = compute_precision_recall_curve(frames, threshold)
     ap = compute_area_under_curve(curve)
 
+<<<<<<< HEAD
     return AveragePrecisionMetric(ap, curve)
+=======
+    return AveragePrecisionMetric(ap, curve)
+>>>>>>> e87ac0dec918bcd57239ac328a607c30e0f6a459
