@@ -150,10 +150,11 @@ class PredictionModel(nn.Module):
         mu_batches = self._postprocess(mu, batch_ids, original_x_pose)
         num_actors = len(batch_ids)
         sigma = sigma.reshape(num_actors, -1, 3)
-
+        
         diag, tril = sigma.split(2, dim=-1)
         diag = 1 + self.ReLU(diag)
         z = torch.zeros(size=[*diag.shape[:-1]], device='cuda')
+
         scale_tril = torch.stack([
             diag[..., 0], z,
             tril.squeeze(), diag[..., 1]
