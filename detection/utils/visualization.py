@@ -46,15 +46,6 @@ def plot_ellipse(
 
     ellipse.set_transform(transf + ax.transData)
     ax.add_patch(ellipse)
-    #ax.add_patch(
-    #    Ellipse(
-    #        (x, y),
-    #        np.sqrt(cov_matrix[0,0])*2,
-    #        np.sqrt(cov_matrix[1,1])*2,
-    #        facecolor=color,
-    #        label=label,
-    #    )
-    #)
 
 
 def plot_box(

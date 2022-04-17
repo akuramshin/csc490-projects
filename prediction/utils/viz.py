@@ -38,7 +38,7 @@ def visualize_trajectories(
     yaws = trajectories.yaws
     boxes_x = trajectories.boxes_x
     boxes_y = trajectories.boxes_y
-    covariance_matrix = trajectories.variance_matrix
+    scale_tril_matrix = trajectories.scale_tril_matrix
 
     colors = []
     for ix in range(centroids_x.shape[0]):
@@ -66,7 +66,7 @@ def visualize_trajectories(
                     ax,
                     centroids_x[ix, t].item(),
                     centroids_y[ix, t].item(),
-                    covariance_matrix[ix, t],
+                    scale_tril_matrix[ix, t],
                     new_color,
                     name,
                 )

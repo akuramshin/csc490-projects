@@ -39,8 +39,8 @@ class PredictionModel(nn.Module):
 
         # TODO: Implement
         self._decoder = self._build_linear_network([128, 256])
-        self._head_mu = nn.Linear(256, T*2)
-        self._head_sigma = nn.Linear(256, T*3)
+        self._head_means = nn.Linear(256, T*2)
+        self._head_scale_tril = nn.Linear(256, T*3)
         self.ReLU = nn.ReLU()
         self.ELU = nn.ELU(alpha=0.9)
 
@@ -144,14 +144,14 @@ class PredictionModel(nn.Module):
         """
         x, batch_ids, original_x_pose = self._preprocess(x_batches)
         out = self._decoder(self._encoder(x))
-        mu = self._head_mu(self.ReLU(out))
-        sigma = self._head_sigma(self.ReLU(out))
+        means = self._head_means(self.ReLU(out))
+        scale_tril = self._head_scale_tril(self.ReLU(out))
 
-        mu_batches = self._postprocess(mu, batch_ids, original_x_pose)
+        mean_batches = self._postprocess(means, batch_ids, original_x_pose)
         num_actors = len(batch_ids)
-        sigma = sigma.reshape(num_actors, -1, 3)
+        scale_tril = scale_tril.reshape(num_actors, -1, 3)
 
-        diag, tril = sigma.split(2, dim=-1)
+        diag, tril = scale_tril.split(2, dim=-1)
         diag = 1 + self.ReLU(diag)
         z = torch.zeros(size=[*diag.shape[:-1]], device='cuda')
         scale_tril = torch.stack([
@@ -159,9 +159,9 @@ class PredictionModel(nn.Module):
             tril.squeeze(), diag[..., 1]
         ], dim=-1).view(*diag.shape[:-1], 2, 2)
 
-        cov_batches = unflatten_batch(scale_tril, batch_ids)
+        scale_tril_batches = unflatten_batch(scale_tril, batch_ids)
 
-        return mu_batches, cov_batches
+        return mean_batches, scale_tril_batches
 
     @torch.no_grad()
     def inference(self, history: Tensor) -> Trajectories:
