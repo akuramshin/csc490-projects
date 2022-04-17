@@ -1,24 +1,26 @@
 import os
 import pickle
-
+import torch
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 from detection.modules.voxelizer import VoxelizerConfig
 from detection.pandaset.dataset import PandasetConfig
 from detection.pandaset.util import LabelClass
+
 from tracking.dataset import OfflineTrackingDataset
 from tracking.metrics.evaluator import Evaluator
 from tracking.tracker import Tracker
 from tracking.types import AssociateMethod, Tracklets
 from tracking.visualization import plot_tracklets
 
-
+        
 def track(
     dataset_path,
     detection_path="tracking/detection_results/csc490_detector",
     result_path="tracking/tracking_results/results.pkl",
     tracker_associate_method=AssociateMethod.HUNGARIAN,
+    loss="iou",
 ):
     print(f"Loading Pandaset from {dataset_path}")
     print(f"Loading dumped detection results from {detection_path}")
@@ -45,9 +47,9 @@ def track(
         tracking_inputs = tracking_data.tracking_inputs
         tracking_label = tracking_data.tracking_labels
         tracker = Tracker(
-            track_steps=80, associate_method=AssociateMethod(tracker_associate_method)
+            track_steps=80, associate_method=AssociateMethod(tracker_associate_method), loss=loss
         )
-        tracker.track(tracking_inputs.bboxes, tracking_inputs.scores)
+        tracker.track(tracking_inputs.bboxes, tracking_inputs.scores, loss)
         tracking_pred = Tracklets(tracker.tracks)
         save_dict = {
             "sequence_id": seq_id,

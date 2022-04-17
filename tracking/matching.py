@@ -19,15 +19,14 @@ def greedy_matching(cost_matrix: np.ndarray) -> Tuple[List, List]:
         assignment corresponds to costs[0, 3], costs[1, 1] and costs[2, 0].
     """
     # TODO: Replace this stub code.
-    
     row_ids, col_ids = [], []
     M, N = cost_matrix.shape
-    
+
     cost_matrix_copy = cost_matrix.copy()
     # np.inf can't be converted to int, so use this way to substitute 
     over_max = np.max(cost_matrix_copy) + 1
-    
-    
+
+
     iter_num = min(N, M)
     for i in range(iter_num):
         min_row_ix, min_col_ix = np.unravel_index(np.argmin(cost_matrix_copy, axis=None), cost_matrix_copy.shape)
@@ -35,7 +34,7 @@ def greedy_matching(cost_matrix: np.ndarray) -> Tuple[List, List]:
         col_ids.append(min_col_ix)
         cost_matrix_copy[min_row_ix,:] =over_max
         cost_matrix_copy[:, min_col_ix] =over_max
-    # ( List[int], List[int] )
+    # (List[int], List[int])
     return (row_ids, col_ids)
 
 
