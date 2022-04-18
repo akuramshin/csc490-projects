@@ -1,6 +1,7 @@
 import numpy as np
 from shapely.geometry import Polygon
-
+import torch
+from torch import Tensor
 
 def iou_2d(bboxes1: np.ndarray, bboxes2: np.ndarray) -> np.ndarray:
     """Computes 2D intersection over union of two sets of bounding boxes
@@ -45,3 +46,22 @@ def iou_2d(bboxes1: np.ndarray, bboxes2: np.ndarray) -> np.ndarray:
 
 
     return iou_mat
+
+
+def geometry_cost(bboxes1: np.ndarray, bboxes2: np.ndarray) -> np.ndarray:
+    M, N = bboxes1.shape[0], bboxes2.shape[0]
+    # TODO: Replace this stub code.
+    cost_mat = torch.empty(M, N)
+
+    for i in range(M):
+        for j in range(N):
+            bb1 = bboxes1[i]
+            bb2 = bboxes2[j]
+            diff_square = (bb1 - bb2) ** 2
+            centroid_diff = diff_square[:2].sum().sqrt()
+            size_diff = diff_square[2:4].sum().sqrt()
+            yaw_diff = diff_square[4].sqrt()
+            
+            cost_mat[i, j] = centroid_diff + size_diff + yaw_diff
+    print(cost_mat)
+    return cost_mat.numpy()

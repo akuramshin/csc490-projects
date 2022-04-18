@@ -5,7 +5,7 @@ import numpy as np
 import torch
 from torch import Tensor
 
-from tracking.cost import iou_2d
+from tracking.cost import iou_2d, geometry_cost
 from tracking.matching import greedy_matching, hungarian_matching
 from tracking.types import ActorID, AssociateMethod, SingleTracklet
 
@@ -18,8 +18,9 @@ class Tracker:
         track_steps: int,
         associate_method: AssociateMethod,
         min_score: float = 0.3,  # we only match bbox with confidence score >= min_score
-        match_th: float = 1.0,  # we only filter out matches with cost >= match_th
+        match_th: float = 'default',  # we only filter out matches with cost >= match_th
         device: str = "cuda",
+        loss: str = "iou",
     ):
         assert (
             track_steps >= 2
@@ -27,7 +28,12 @@ class Tracker:
         self.track_steps = track_steps
         self.associate_method = associate_method
         self.min_score = min_score
-        self.match_th = match_th
+        if match_th != 'default':
+            self.match_th = match_th
+        elif loss == 'iou':
+            self.match_th = 1.0
+        elif loss == 'geometry':
+            self.match_th = 5.0
         self.reset()
         self.device = device
 
@@ -46,7 +52,7 @@ class Tracker:
         self.next_track_id += 1
         return new_track_id
 
-    def cost_matrix(self, bboxes1: Tensor, bboxes2: Tensor) -> Tensor:
+    def cost_matrix(self, bboxes1: Tensor, bboxes2: Tensor, loss: str) -> Tensor:
         """Given two set of bounding boxes, this function computes the affinity matrix between two bbox sets
 
         Args:
@@ -55,13 +61,19 @@ class Tracker:
         Returns:
             cost_matrix: cost matrix of shape [M, N]
         """
-        # TODO: Replace this stub code by making use of iou_2d
-        M, N = bboxes1.shape[0], bboxes2.shape[0]
-        cost_matrix = 1 - iou_2d(bboxes1, bboxes2)
-        return torch.from_numpy(cost_matrix)
+        print(loss)
+        if loss == 'iou':
+            # TODO: Replace this stub code by making use of iou_2d
+            M, N = bboxes1.shape[0], bboxes2.shape[0]
+            cost_matrix = 1 - iou_2d(bboxes1, bboxes2)
+            print(cost_matrix)
+            return torch.from_numpy(cost_matrix)
+        elif loss == 'geometry':
+            cost_matrix = geometry_cost(bboxes1, bboxes2)
+            return torch.from_numpy(cost_matrix)
 
     def associate_greedy(
-        self, bboxes1: Tensor, bboxes2: Tensor
+        self, bboxes1: Tensor, bboxes2: Tensor, loss: str
     ) -> Tuple[Tensor, Tensor]:
         """This function aims to find the greedy association between two set of bounding boxes
 
@@ -75,7 +87,7 @@ class Tracker:
         """
         # TODO: Replace this stub code by invoking self.cost_matrix and greedy_matching
         M, N = bboxes1.shape[0], bboxes2.shape[0]
-        cost_matrix = self.cost_matrix(bboxes1, bboxes2)
+        cost_matrix = self.cost_matrix(bboxes1, bboxes2, loss)
         row_ids, col_ids = greedy_matching(cost_matrix.numpy())
 
         assign_matrix = torch.zeros(M, N)
@@ -84,7 +96,7 @@ class Tracker:
         return assign_matrix, cost_matrix
 
     def associate_hungarian(
-        self, bboxes1: Tensor, bboxes2: Tensor
+        self, bboxes1: Tensor, bboxes2: Tensor, loss: str
     ) -> Tuple[Tensor, Tensor]:
         """This function aims to find the hungarian association between two set of bounding boxes
 
@@ -98,7 +110,7 @@ class Tracker:
         """
         # TODO: Replace this stub code by invoking self.cost_matrix and hungarian_matching
         M, N = bboxes1.shape[0], bboxes2.shape[0]
-        cost_matrix = self.cost_matrix(bboxes1, bboxes2)
+        cost_matrix = self.cost_matrix(bboxes1, bboxes2, loss)
         row_ids, col_ids = hungarian_matching(cost_matrix)
 
         assign_matrix = torch.zeros(M, N)
@@ -107,7 +119,7 @@ class Tracker:
         return assign_matrix, cost_matrix
 
     def track_consecutive_frame(
-        self, bboxes1: Tensor, bboxes2: Tensor
+        self, bboxes1: Tensor, bboxes2: Tensor, loss: str
     ) -> Tuple[Tensor, Tensor]:
         """This function tracks the bboxes2 in the current frame against bboxes1 in the previous frame,
         by associating bboxes1 and bboxes2 with associate_method, and filtering out the associations with
@@ -124,9 +136,9 @@ class Tracker:
             cost_matrix: cost matrix of shape [M, N]
         """
         if self.associate_method == AssociateMethod.GREEDY:
-            assign_matrix, cost_matrix = self.associate_greedy(bboxes1, bboxes2)
+            assign_matrix, cost_matrix = self.associate_greedy(bboxes1, bboxes2, loss)
         elif self.associate_method == AssociateMethod.HUNGARIAN:
-            assign_matrix, cost_matrix = self.associate_hungarian(bboxes1, bboxes2)
+            assign_matrix, cost_matrix = self.associate_hungarian(bboxes1, bboxes2, loss)
         else:
             raise ValueError(f"Unknown association method {self.associate_method}")
 
@@ -135,7 +147,7 @@ class Tracker:
 
         return assign_matrix, cost_matrix
 
-    def track(self, bboxes_seq: List[Tensor], scores_seq: List[Tensor]):
+    def track(self, bboxes_seq: List[Tensor], scores_seq: List[Tensor], loss: str):
         """Perform tracking given a sequence of bboxes and bbox confidence scores.
         We only track bboxes with scores >= self.min_score.
 
@@ -161,7 +173,7 @@ class Tracker:
                 prev_bboxes = prev_bboxes[scores_seq[frame_id - 1] >= self.min_score]
                 cur_bboxes = cur_bboxes[scores_seq[frame_id] >= self.min_score]
             assign_matrix, cost_matrix = self.track_consecutive_frame(
-                prev_bboxes, cur_bboxes
+                prev_bboxes, cur_bboxes, loss
             )
             prev_frame_track_ids = deepcopy(cur_frame_track_ids)
             cur_frame_track_ids = []
