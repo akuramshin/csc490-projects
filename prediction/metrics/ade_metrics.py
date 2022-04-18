@@ -1,5 +1,15 @@
 import torch
+from torch.distributions import MultivariateNormal
 
+
+def compute_LL(centroids: torch.Tensor, scale_tril: torch.Tensor, labels: torch.Tensor):
+    valid = ~torch.isnan(labels).any(-1)
+    labels = labels[valid]
+    centroids = centroids[valid]
+    scale_tril = scale_tril[valid]
+
+    dist =  MultivariateNormal(centroids, scale_tril=scale_tril)
+    return dist.log_prob(labels).mean().item()
 
 def compute_ADE(centroids: torch.Tensor, labels: torch.Tensor) -> float:
     """Calculates the average displacement (L2) error between a set of centroids and a set of labels

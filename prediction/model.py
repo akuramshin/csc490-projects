@@ -152,7 +152,7 @@ class PredictionModel(nn.Module):
         scale_tril = scale_tril.reshape(num_actors, -1, 3)
 
         diag, tril = scale_tril.split(2, dim=-1)
-        diag = 1 + self.ReLU(diag)
+        diag = 1 + self.ELU(diag)
         z = torch.zeros(size=[*diag.shape[:-1]], device='cuda')
         scale_tril = torch.stack([
             diag[..., 0], z,

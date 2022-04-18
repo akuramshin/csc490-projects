@@ -8,6 +8,7 @@ from pandas import DataFrame
 from prediction.metrics.ade_metrics import (
     compute_ADE,
     compute_FDE,
+    compute_LL,
     compute_per_frame_err,
 )
 from prediction.metrics.types import EvaluationFrame
@@ -19,6 +20,7 @@ class Evaluator:
     metrics = {
         "ADE": compute_ADE,
         "FDE": compute_FDE,
+        "LL": compute_LL,
     }
     visual = {
         "frame_wise_err": compute_per_frame_err,
@@ -78,9 +80,16 @@ class Evaluator:
             }
             for frame in self._evaluation_frames:
                 sub_total = temp_dict.get("{}/total".format(metric_name), 0.0)
-                sub_total += metric_func(
-                    frame.trajectories.centroids, frame.labels.centroids
-                )
+                if metric_name == "LL":
+                    sub_total += metric_func(
+                        frame.trajectories.centroids, 
+                        frame.trajectories.scale_tril,
+                        frame.labels.centroids
+                    )
+                else:
+                    sub_total += metric_func(
+                        frame.trajectories.centroids, frame.labels.centroids
+                    )
                 temp_dict["{}/total".format(metric_name)] = sub_total
 
                 sub_count = temp_dict.get("{}/count".format(metric_name), 0.0)
