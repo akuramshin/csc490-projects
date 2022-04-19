@@ -42,7 +42,7 @@ class PredictionModel(nn.Module):
         self._head_means = nn.Linear(256, T*2)
         self._head_scale_tril = nn.Linear(256, T*3)
         self.ReLU = nn.ReLU()
-        self.ELU = nn.ELU(alpha=0.9)
+        self.ELU = nn.ELU(alpha=0.2)
 
 
     def _build_linear_network(self, layer_size_list):
@@ -149,11 +149,8 @@ class PredictionModel(nn.Module):
 
         mean_batches = self._postprocess(means, batch_ids, original_x_pose)
         num_actors = len(batch_ids)
-        sigma = sigma.reshape(num_actors, -1, 3)
-        
-        diag, tril = sigma.split(2, dim=-1)
-        scale_tril = scale_tril.reshape(num_actors, -1, 3)
 
+        scale_tril = scale_tril.reshape(num_actors, -1, 3)
         diag, tril = scale_tril.split(2, dim=-1)
         diag = 1 + self.ELU(diag)
         z = torch.zeros(size=[*diag.shape[:-1]], device='cuda')
